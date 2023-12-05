@@ -31,7 +31,7 @@ from pathlib import Path
 
 import cv2
 
-from vitg.network.backbone.vitgyolov8.nn.autobackend import AutoBackend
+# from vitg.network.backbone.vitgyolov8.nn.autobackend import AutoBackend
 from vitg.network.backbone.vitgyolov8.yolo.cfg import get_cfg
 from vitg.network.backbone.vitgyolov8.yolo.data import load_inference_source
 from vitg.network.backbone.vitgyolov8.yolo.data.augment import classify_transforms

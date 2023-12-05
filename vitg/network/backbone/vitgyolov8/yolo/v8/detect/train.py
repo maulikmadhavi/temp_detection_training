@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from vitg.network.backbone.vitgyolov8.nn.tasks import DetectionModel
 from vitg.network.backbone.vitgyolov8.yolo import v8
-from vitg.network.backbone.vitgyolov8.yolo.data import build_dataloader
+# from vitg.network.backbone.vitgyolov8.yolo.data import build_dataloader
 from vitg.network.backbone.vitgyolov8.yolo.data.dataloaders.v5loader import (
     create_dataloader,
 )
@@ -26,7 +26,6 @@ from vitg.network.backbone.vitgyolov8.yolo.utils.tal import (
 from vitg.network.backbone.vitgyolov8.yolo.utils.torch_utils import de_parallel
 
 
-# BaseTrainer python usage
 class DetectionTrainer(BaseTrainer):
     def get_dataloader(self, dataset_path, batch_size, mode="train", rank=0):
         # TODO: manage splits differently
@@ -333,4 +332,5 @@ def train(cfg=DEFAULT_CFG, use_python=False):
 
 
 if __name__ == "__main__":
-    train()
+    # train()
+    pass

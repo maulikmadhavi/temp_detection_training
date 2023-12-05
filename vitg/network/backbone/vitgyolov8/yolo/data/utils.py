@@ -74,26 +74,26 @@ for orientation in ExifTags.TAGS.keys():
         break
 
 
-# def img2label_paths(img_paths):
-# Define label paths as a function of image paths
-#    sa, sb = f"{os.sep}images{os.sep}", f"{os.sep}labels{os.sep}"  # /images/, /labels/ substrings
-#    print("get sample label")
-#    print([sb.join(x.rsplit(sa, 1)).rsplit(".", 1)[0] + ".txt" for x in img_paths][:5])
-#    return [sb.join(x.rsplit(sa, 1)).rsplit(".", 1)[0] + ".txt" for x in img_paths]
-
-
 def img2label_paths(img_paths):
-    # Define label paths as a function of image paths
-    # sa, sb = os.sep + 'images' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
-    # /home/alex/project/people_counting_people_detection/yolor/yolor_cocotest_only/dummpy_coco_test_labels
-    # /home/alex/data/coco/dell1_val_data/annotations/yolo_anno_all_val80class_0_79_nocrowd_images
-    # /home/alex/data/crowd_counting/fully_from_ausu/data/all_labels_txt_coco_format
-    # /home/alex/project/people_counting_people_detection/yolor/yolor_cocotest_only/dummpy_coco_test_labels
-    return [
-        "/home/alex/data/coco/dell1_val_data/annotations/yolo_anno_all_val80class_0_79_nocrowd_images/"
-        + x.split("/")[-1].replace(".jpg", ".txt").replace(".png", ".txt")
-        for x in img_paths
-    ]
+# Define label paths as a function of image paths
+   sa, sb = f"{os.sep}images{os.sep}", f"{os.sep}labels{os.sep}"  # /images/, /labels/ substrings
+   print("get sample label")
+   print([sb.join(x.rsplit(sa, 1)).rsplit(".", 1)[0] + ".txt" for x in img_paths][:5])
+   return [sb.join(x.rsplit(sa, 1)).rsplit(".", 1)[0] + ".txt" for x in img_paths]
+
+
+# def img2label_paths(img_paths):
+#     # Define label paths as a function of image paths
+#     # sa, sb = os.sep + 'images' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
+#     # /home/alex/project/people_counting_people_detection/yolor/yolor_cocotest_only/dummpy_coco_test_labels
+#     # /home/alex/data/coco/dell1_val_data/annotations/yolo_anno_all_val80class_0_79_nocrowd_images
+#     # /home/alex/data/crowd_counting/fully_from_ausu/data/all_labels_txt_coco_format
+#     # /home/alex/project/people_counting_people_detection/yolor/yolor_cocotest_only/dummpy_coco_test_labels
+#     return [
+#         "/home/alex/data/coco/dell1_val_data/annotations/yolo_anno_all_val80class_0_79_nocrowd_images/"
+#         + x.split("/")[-1].replace(".jpg", ".txt").replace(".png", ".txt")
+#         for x in img_paths
+#     ]
 
 
 def get_hash(paths):

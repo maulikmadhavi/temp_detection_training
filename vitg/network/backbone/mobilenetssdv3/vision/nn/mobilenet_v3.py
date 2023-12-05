@@ -3,14 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def get_model_parameters(model):
-    total_parameters = 0
-    for layer in list(model.parameters()):
-        layer_parameter = 1
-        for l in list(layer.size()):
-            layer_parameter *= l
-        total_parameters += layer_parameter
-    return total_parameters
+# def get_model_parameters(model):
+#     total_parameters = 0
+#     for layer in list(model.parameters()):
+#         layer_parameter = 1
+#         for l in list(layer.size()):
+#             layer_parameter *= l
+#         total_parameters += layer_parameter
+#     return total_parameters
 
 
 def _weights_init(m):
