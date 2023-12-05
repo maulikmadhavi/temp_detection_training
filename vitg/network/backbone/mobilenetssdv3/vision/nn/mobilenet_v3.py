@@ -118,7 +118,6 @@ class MobileBlock(nn.Module):
         return x + out if self.use_connect else out
 
 
-
 class MobileNetV3(nn.Module):
     # def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0):
     def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0, dropout_rate=0.0):

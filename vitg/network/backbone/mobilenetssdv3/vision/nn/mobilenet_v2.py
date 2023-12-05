@@ -3,7 +3,6 @@ import torch.nn as nn
 # Modified from https://github.com/tonylins/pytorch-mobilenet-v2/blob/master/MobileNetV2.py.
 # In this version, Relu6 is replaced with Relu to make it ONNX compatible.
 
-
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio, use_batch_norm=True, onnx_compatible=False):
         super(InvertedResidual, self).__init__()

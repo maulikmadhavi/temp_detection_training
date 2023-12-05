@@ -41,7 +41,6 @@ class C3(nn.Module):
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), dim=1))))
 
 
-
 class Sum(nn.Module):
     # Weighted sum of 2 or more layers https://arxiv.org/abs/1911.09070
     def __init__(self, n, weight=False):  # n: number of inputs
@@ -61,7 +60,6 @@ class Sum(nn.Module):
             for i in self.iter:
                 y = y + x[i + 1]
         return y
-
 
 
 class MixConv2d(nn.Module):

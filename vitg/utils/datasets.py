@@ -535,7 +535,6 @@ class LoadImagesAndLabels_noletterbox(Dataset):  # for training/testing
         # print("not use mosaic")
         self.mosaic_border = [-img_size // 2, -img_size // 2]
         self.stride = stride
-
         shapes_off = []
         for index in range(self.length):
             with self.env.begin(write=False) as txn:
@@ -694,8 +693,6 @@ class LoadImagesAndLabels_noletterbox(Dataset):  # for training/testing
         for i, l in enumerate(label):
             l[:, 0] = i  # add target image index for build_targets()
         return torch.stack(img, 0), torch.cat(label, 0), path, shapes
-
-
 
 
 class LoadImagesAndLabels_test(Dataset):  # for training/testing
@@ -905,9 +902,6 @@ class LoadImagesAndLabels_test(Dataset):  # for training/testing
         for i, l in enumerate(label):
             l[:, 0] = i  # add target image index for build_targets()
         return torch.stack(img, 0), torch.cat(label, 0), path, shapes
-
-
-
 
 # Ancillary functions --------------------------------------------------------------------------------------------------
 def load_image(self, index):

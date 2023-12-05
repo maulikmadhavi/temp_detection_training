@@ -1,35 +1,16 @@
 """
 @author: Viet Nguyen <nhviet1009@gmail.com>
 """
-import json
-import os
-import shutil
-import statistics
 
-# import operator
+import statistics
 import sys
 import time
 from enum import Enum
-from glob import glob
-from types import SimpleNamespace
-import numpy as np
-import pandas as pd
 
-# from tqdm.autonotebook import tqdm
+import numpy as np
 import torch
 import yaml
-
-# from pycocotools.cocoeval import COCOeval
-# from apex import amp
 from torchvision.ops.boxes import box_convert, box_iou
-
-# sys.path.insert(1, '/home/alex/vade/VADE_detection_bitbuket/0.4.1_mobileSSD/src')
-# from vitg.network.backbone.vitgyolor.utils.plots import plot_images
-
-# import sys
-
-
-# from vitg.stand_alone_metric import *
 
 
 class MethodAveragePrecision(Enum):
@@ -48,7 +29,7 @@ class MethodAveragePrecision(Enum):
 # In[26]:
 
 
-class BBFormat(Enum):
+class _BbFormat(Enum):
     """
     Class representing the format of a bounding box.
     It can be (X,Y,width,height) => XYWH
@@ -81,7 +62,7 @@ class CoordinatesType(Enum):
 # In[43]:
 
 
-class BBType(Enum):
+class _BbType(Enum):
     """
     Class representing if the bounding box is groundtruth or not.
 
@@ -95,80 +76,64 @@ class BBType(Enum):
 
 class Evaluator:
     @staticmethod
-    def CalculateAveragePrecision(rec, prec):
-        mrec = []
-        mrec.append(0)
-        [mrec.append(e) for e in rec]
-        mrec.append(1)
-        mpre = []
-        mpre.append(0)
-        [mpre.append(e) for e in prec]
-        mpre.append(0)
+    def calculate_average_precision(rec, prec):
+        mrec = [0, 1]
+        mpre = [0, 0]
         for i in range(len(mpre) - 1, 0, -1):
             mpre[i - 1] = max(mpre[i - 1], mpre[i])
-        ii = []
-        for i in range(len(mrec) - 1):
-            if mrec[1 + i] != mrec[i]:
-                ii.append(i + 1)
+        ii = [i + 1 for i in range(len(mrec) - 1) if mrec[1 + i] != mrec[i]]
         ap = 0
         for i in ii:
             ap = ap + np.sum((mrec[i] - mrec[i - 1]) * mpre[i])
-        # return [ap, mpre[1:len(mpre)-1], mrec[1:len(mpre)-1], ii]
         return [ap, mpre[0 : len(mpre) - 1], mrec[0 : len(mpre) - 1], ii]
 
-  
     @staticmethod
     def iou(boxA, boxB):
         # if boxes dont intersect
         if Evaluator._boxesIntersect(boxA, boxB) is False:
             return 0
-        interArea = Evaluator._getIntersectionArea(boxA, boxB)
-        union = Evaluator._getUnionAreas(boxA, boxB, interArea=interArea)
+        inter_area = Evaluator._getIntersectionArea(boxA, boxB)
+        union = Evaluator._getUnionAreas(boxA, boxB, interArea=inter_area)
         # intersection over union
-        iou = interArea / union
+        iou = inter_area / union
         assert iou >= 0
         return iou
 
-    # boxA = (Ax1,Ay1,Ax2,Ay2)
-    # boxB = (Bx1,By1,Bx2,By2)
     @staticmethod
-    def _boxesIntersect(boxA, boxB):
+    def _boxes_intersect(boxA, boxB):
         if boxA[0] > boxB[2]:
-            return False  # boxA is right of boxB
+            return False
         if boxB[0] > boxA[2]:
-            return False  # boxA is left of boxB
+            return False
         if boxA[3] < boxB[1]:
-            return False  # boxA is above boxB
-        if boxA[1] > boxB[3]:
-            return False  # boxA is below boxB
-        return True
+            return False
+        return not boxA[1] > boxB[3]
 
     @staticmethod
-    def _getIntersectionArea(boxA, boxB):
-        xA = max(boxA[0], boxB[0])
-        yA = max(boxA[1], boxB[1])
-        xB = min(boxA[2], boxB[2])
-        yB = min(boxA[3], boxB[3])
-        # intersection area
-        return (xB - xA + 1) * (yB - yA + 1)
+    def _get_intersection_area(boxA, boxB):
+        x_a = max(boxA[0], boxB[0])
+        y_a = max(boxA[1], boxB[1])
+        x_b = min(boxA[2], boxB[2])
+        y_b = min(boxA[3], boxB[3])
+        return (x_b - x_a + 1) * (y_b - y_a + 1)
 
     @staticmethod
-    def _getUnionAreas(boxA, boxB, interArea=None):
-        area_A = Evaluator._getArea(boxA)
-        area_B = Evaluator._getArea(boxB)
+    def _get_union_areas(boxA, boxB, interArea=None):
+        area_a = Evaluator._getArea(boxA)
+        area_b = Evaluator._getArea(boxB)
         if interArea is None:
             interArea = Evaluator._getIntersectionArea(boxA, boxB)
-        return float(area_A + area_B - interArea)
+        return float(area_a + area_b - interArea)
 
     @staticmethod
-    def _getArea(box):
+    def _get_area(box):
         return (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
 
 
 def encode_local(bboxes_in, labels_in, dboxes_default_encode, criteria=0.5):
     ious = box_iou(bboxes_in, dboxes_default_encode)
     best_dbox_ious, best_dbox_idx = ious.max(dim=0)
-    best_bbox_ious, best_bbox_idx = ious.max(dim=1)
+    _, best_bbox_idx = ious.max(dim=1)
 
     # set best ious 2.0
     best_dbox_ious.index_fill_(0, best_bbox_idx, 2.0)
@@ -186,7 +151,6 @@ def encode_local(bboxes_in, labels_in, dboxes_default_encode, criteria=0.5):
     return bboxes_out, labels_out
 
 
-
 def evaluate_mobilenet(
     opt,
     model,
@@ -202,9 +166,8 @@ def evaluate_mobilenet(
     detections = []
     allgroundt = []
 
-    # print("hello")
     totalloss = 0
-    for nbatch, (img, targets, paths, shapes) in enumerate(test_loader):
+    for img, targets, paths, shapes in test_loader:
         img = img.float() / 255.0
         time.time()
         # sample only for fast eval
@@ -216,24 +179,22 @@ def evaluate_mobilenet(
             temploc = tempb[:, 2:]
 
             templabel = tempb[:, 1] + 1
-            temploc_updateform2 = [
-                [
-                    item[0][0] - item[0][2] / 2,
-                    item[0][1] - item[0][3] / 2,
-                    item[0][2],
-                    item[0][3],
-                    item[1],
+            temploc_updateform2 = [[
+                item[0][0] - item[0][2] / 2,
+                item[0][1] - item[0][3] / 2,
+                item[0][2],
+                item[0][3],
+                item[1],
                 ]
-                for item in list(zip(temploc, templabel))
+                for item in zip(temploc, templabel)
             ]
             templocredotensor2 = torch.as_tensor(temploc_updateform2)
 
-            temploc_updateform = [
-                [
-                    item[0] - item[2] / 2,
-                    item[1] - item[3] / 2,
-                    item[0] + item[2] / 2,
-                    item[1] + item[3] / 2,
+            temploc_updateform = [[
+                item[0] - item[2] / 2,
+                item[1] - item[3] / 2,
+                item[0] + item[2] / 2,
+                item[1] + item[3] / 2,
                 ]
                 for item in temploc
             ]
@@ -250,17 +211,15 @@ def evaluate_mobilenet(
             width = shapes[batchidx][0][1]
             height = shapes[batchidx][0][0]
             for value in templocredotensor2:
-                allgroundt.append(
-                    [
-                        paths[batchidx],
-                        value[0] * width,
-                        value[1] * height,
-                        value[2] * width,
-                        value[3] * height,
-                        1,
-                        value[4],
-                    ]
-                )
+                allgroundt.append([
+                    paths[batchidx],
+                    value[0] * width,
+                    value[1] * height,
+                    value[2] * width,
+                    value[3] * height,
+                    1,
+                    value[4],
+                ])
 
         gloc = torch.tensor(boxinallbatch)
         glabel = torch.tensor(labelinallbatch)
@@ -282,48 +241,38 @@ def evaluate_mobilenet(
 
             loss = criterion(ploc.cpu(), plabel.cpu(), gloc.cpu(), glabel.cpu())
 
-            # print("predict label")
-            # print(plabel)
             detection_target_inbatch = []
             for idx in range(ploc.shape[0]):
                 ploc_i = ploc[idx, :, :].unsqueeze(0)
                 plabel_i = plabel[idx, :, :].unsqueeze(0)
                 try:
-                    # result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]
-                    result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[
-                        0
-                    ]
+                    result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]
                 except:
                     print("No object detected in idx: {}".format(idx))
                     continue
                 width = shapes[idx][0][1]
                 height = shapes[idx][0][0]
-                # height, width = img_size[idx]
                 loc, label, prob = [r.cpu().numpy() for r in result]
                 for loc_, label_, prob_ in zip(loc, label, prob):
-                    detections.append(
-                        [
-                            paths[idx],
-                            loc_[0] * width,
-                            loc_[1] * height,
-                            (loc_[2] - loc_[0]) * width,
-                            (loc_[3] - loc_[1]) * height,
-                            prob_,
-                            label_,
-                        ]
-                    )
+                    detections.append([
+                        paths[idx],
+                        loc_[0] * width,
+                        loc_[1] * height,
+                        (loc_[2] - loc_[0]) * width,
+                        (loc_[3] - loc_[1]) * height,
+                        prob_,
+                        label_,
+                    ])
                     # category_ids[label_ - 1]])
                     if prob_ > 0.3:
-                        detection_target_inbatch.append(
-                            [
-                                idx,
-                                label_,
-                                (loc_[0] + loc_[2]) / 2,
-                                (loc_[3] + loc_[1]) / 2,
-                                (loc_[2] - loc_[0]),
-                                (loc_[3] - loc_[1]),
-                            ]
-                        )
+                        detection_target_inbatch.append([
+                            idx,
+                            label_,
+                            (loc_[0] + loc_[2]) / 2,
+                            (loc_[3] + loc_[1]) / 2,
+                            (loc_[2] - loc_[0]),
+                            (loc_[3] - loc_[1]),
+                        ])
                         # x1,y1,w,h
 
     totalloss += loss
@@ -338,15 +287,13 @@ def evaluate_mobilenet(
             float(itemconv[1]) + float(itemconv[3]),
             float(itemconv[2]) + float(itemconv[4]),
         )
-        detections_aftercov.append(
-            [
-                str((itemconv[0])),
-                str(float(itemconv[6])),
-                float(itemconv[5]),
-                bboxconv,
-                "999",
-            ]
-        )
+        detections_aftercov.append([
+            str((itemconv[0])),
+            str(float(itemconv[6])),
+            float(itemconv[5]),
+            bboxconv,
+            "999",
+        ])
 
     allgroundt_aftercov = []
     for itemconv in allgroundt:
@@ -356,15 +303,13 @@ def evaluate_mobilenet(
             float(itemconv[1]) + float(itemconv[3]),
             float(itemconv[2]) + float(itemconv[4]),
         )
-        allgroundt_aftercov.append(
-            [
-                str(itemconv[0]),
-                str(float(itemconv[6])),
-                float(itemconv[5]),
-                bboxconv,
-                "999",
-            ]
-        )
+        allgroundt_aftercov.append([
+            str(itemconv[0]),
+            str(float(itemconv[6])),
+            float(itemconv[5]),
+            bboxconv,
+            "999",
+        ])
 
     detections_aftercov_class = [item[1] for item in detections_aftercov]
     allgroundt_aftercov_class = [item[1] for item in allgroundt_aftercov]
@@ -373,34 +318,28 @@ def evaluate_mobilenet(
 
     classesall = sorted(detectionsgt_all_class)
 
-    Evaluator()
-
-
-    IOUThresholdmin = 0.4
-    IOUThresholdmax = 2
+    iou_thresholdmin = 0.4
+    iou_thresholdmax = 2
     method = MethodAveragePrecision.EveryPointInterpolation
 
-    ret = (
-        []
-    )  # list containing metrics (precision, recall, average precision) of each class
+    ret = []  # list containing metrics (precision, recall, average precision) of each class
 
     # List with all ground truths (Ex: [imageName,class,confidence=1, (bb coordinates XYX2Y2),annotationid])
-    groundTruths = allgroundt_aftercov
+    ground_truths = allgroundt_aftercov
     # List with all detections (Ex: [imageName,class,confidence,(bb coordinates XYX2Y2),annotationid])
     detections = detections_aftercov
     # Get all classes
     classes = classesall
     # Loop through all bounding boxes and separate them into GTs and detections
 
-    # print("start to calculate all metic for all classes")
+    dects = []
     for c in classes:
         # Get only detection of class c
-        dects = []
-        [dects.append(d) for d in detections if d[1] == c]
+
         # Get only ground truths of class c, use filename as key
         gts = {}
         npos = 0
-        for g in groundTruths:
+        for g in ground_truths:
             if g[1] == c:
                 npos += 1
                 gts[g[0]] = gts.get(g[0], []) + [g]
@@ -412,38 +351,27 @@ def evaluate_mobilenet(
         FP = np.zeros(len(dects))
         # create dictionary with amount of gts for each image
         det = {key: np.zeros(len(gts[key])) for key in gts}
-
-        # print("Evaluating class: %s (%d detections)" % (str(c), len(dects)))
-        # print(dects)
         # Loop through detections
         for d in range(len(dects)):
-            # print('dect %s => %s' % (dects[d][0], dects[d][3],))
             # Find ground truth image
             gt = gts[dects[d][0]] if dects[d][0] in gts else []
             iouMax = sys.float_info.min
             for j in range(len(gt)):
-                # print('Ground truth gt => %s' % (gt[j][3],))
-                # print(gt[j])
                 iou = Evaluator.iou(dects[d][3], gt[j][3])
                 if iou > iouMax:
                     iouMax = iou
                     jmax = j
             # Assign detection as true positive/don't care/false positive
-            if iouMax >= IOUThresholdmin and iouMax <= IOUThresholdmax:
+            if iouMax >= iou_thresholdmin and iouMax <= iou_thresholdmax:
                 if det[dects[d][0]][jmax] == 0:
                     TP[d] = 1  # count as true positive in this detection
                     det[dects[d][0]][jmax] = 1  # flag as already 'seen'
-                    TP_annoid[d] = gt[jmax][
-                        -1
-                    ]  # sotrt related annotation ID from annotation
-                    # print("TP")
+                    TP_annoid[d] = gt[jmax][-1]  # sotrt related annotation ID from annotation
                 else:
                     FP[d] = 1  # count as false positive
-                    # print("FP")
             # - A detected "cat" is overlaped with a GT "cat" with IOU >= IOUThreshold.
             else:
                 FP[d] = 1  # count as false positive
-                # print("FP")
         # compute precision, recall and average precision
         acc_FP = np.cumsum(FP)
         acc_TP = np.cumsum(TP)
@@ -453,27 +381,17 @@ def evaluate_mobilenet(
         for index in range(len(TP)):
             if TP[index] == 1:
                 temp = dects[index]
-                temp.append(
-                    str(int(TP_annoid[index]))
-                )  # add annotationID in this TP detection
+                temp.append(str(int(TP_annoid[index])))  # add annotationID in this TP detection
                 dects_tp_fromidx.append(temp)
-                # dects_tp_fromidx.append(dects[index])
-
         # take all FP in the class if detection, with annoatation id
-        dects_FP_fromidx = []
-        for index in range(len(FP)):
-            if FP[index] == 1:
-                dects_FP_fromidx.append(dects[index])
+        dects_FP_fromidx = [dects[index] for index in range(len(FP)) if FP[index] == 1]
 
         # select TP an FN from ground truth per class
         from_gt_TP = []
         from_gt_FN = []
         for gtkey in gts:
-            # print(gtkey)
             gt_perkey = gts[gtkey]
             gt_result = det[gtkey]
-            # print(gt_perkey)
-            # print(gt_result)
             for gt_img_idx in range(len(gt_result)):
                 if gt_result[gt_img_idx] == 1:
                     from_gt_TP.append(gt_perkey[gt_img_idx])
@@ -509,9 +427,9 @@ def evaluate_mobilenet(
     # as name all detail TP from detection, all detail FP from detection, all detail TP from ground truth, all detail FN from ground truth
     # are sore here per box per line in format [imageName,class,confidence, (bb coordinates),annotationid]
 
-    allPv = []
-    allRv = []
-    allAPv = []
+    all_pv = []
+    all_rv = []
+    all_a_pv = []
 
     for item in ret:
         try:
@@ -521,8 +439,7 @@ def evaluate_mobilenet(
             )
         except:
             precision = 0
-        allPv.append(precision)
-        # recall=item["total TP"]/item["total positives"]
+        all_pv.append(precision)
         try:
             recall = len(item["all detail TP from ground truth"]) / (
                 len(item["all detail TP from ground truth"])
@@ -530,14 +447,13 @@ def evaluate_mobilenet(
             )
         except:
             recall = 0
-        allRv.append(recall)
-        allAPv.append(item["AP"])
+        all_rv.append(recall)
+        all_a_pv.append(item["AP"])
 
-    allAPv = [float(item) for item in allAPv]
-    mean_ap = statistics.mean(allAPv)
+    all_a_pv = [float(item) for item in all_a_pv]
+    mean_ap = statistics.mean(all_a_pv)
 
     return totalloss, mean_ap
-
 
 
 def evaluate_lmdb_outyaml_mobilenet(
@@ -553,7 +469,7 @@ def evaluate_lmdb_outyaml_mobilenet(
         f.write(yaml.dump(yaml_out_temp1))
         f.write("output:" + "\n")
 
-        for nbatch, (img, targets, paths, shapes) in enumerate(test_loader):
+        for img, targets, paths, shapes in test_loader:
             img = img.float() / 255.0
             if torch.cuda.is_available():
                 img = img.cuda()
@@ -570,36 +486,29 @@ def evaluate_lmdb_outyaml_mobilenet(
                     ploc_i = ploc[idx, :, :].unsqueeze(0)
                     plabel_i = plabel[idx, :, :].unsqueeze(0)
                     try:
-                        # result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]
-                        result = encoder.decode_batch(
-                            ploc_i, plabel_i, nms_threshold, 200
-                        )[0]
+                        result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]
                     except:
                         print("No object detected in idx: {}".format(idx))
                         continue
                     width = shapes[idx][0][1]
                     height = shapes[idx][0][0]
-                    # height, width = img_size[idx]
                     loc, label, prob = [r.cpu().numpy() for r in result]
                     annidx = 0
                     for loc_, label_, prob_ in zip(loc, label, prob):
                         annidx += 1
-                        detections.append(
-                            [
-                                paths[idx],
-                                loc_[0] * width,
-                                loc_[1] * height,
-                                (loc_[2] - loc_[0]) * width,
-                                (loc_[3] - loc_[1]) * height,
-                                prob_,
-                                label_,
-                            ]
-                        )
+                        detections.append([
+                            paths[idx],
+                            loc_[0] * width,
+                            loc_[1] * height,
+                            (loc_[2] - loc_[0]) * width,
+                            (loc_[3] - loc_[1]) * height,
+                            prob_,
+                            label_,
+                        ])
                         # category_ids[label_ - 1]])
 
                         conf = str(prob_)
                         if float(conf) > 0.05:
-                            # conf = np.int(boxs[6])
                             gt = np.int(label_) - 1
                             temp_a = {
                                 "input_id": str(paths[idx]),
@@ -623,21 +532,20 @@ def evaluate_lmdb_outyaml_mobilenet(
                             dump_yaml_temp.append(temp_a)
 
                         if prob_ > 0.3:
-                            detection_target_inbatch.append(
-                                [
-                                    idx,
-                                    label_,
-                                    (loc_[0] + loc_[2]) / 2,
-                                    (loc_[3] + loc_[1]) / 2,
-                                    (loc_[2] - loc_[0]),
-                                    (loc_[3] - loc_[1]),
-                                ]
-                            )
+                            detection_target_inbatch.append([
+                                idx,
+                                label_,
+                                (loc_[0] + loc_[2]) / 2,
+                                (loc_[3] + loc_[1]) / 2,
+                                (loc_[2] - loc_[0]),
+                                (loc_[3] - loc_[1]),
+                            ])
 
                     store_bef_write = yaml.dump(dump_yaml_temp)
                     if len(dump_yaml_temp) == 0:
-                        dump_yaml_temp = []
+                        pass
+
                     else:
-                        # print(batch_i)
                         f.write(store_bef_write)
-                        dump_yaml_temp = []
+
+                    dump_yaml_temp = []
