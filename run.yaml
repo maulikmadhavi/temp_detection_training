@@ -1,0 +1,410 @@
+# Test parameters
+default-path:
+    path-interpreter: &path-interpreter python # system
+    path-program: &path-program . #package structure
+
+command-train:
+    path-interpreter: *path-interpreter
+    path-program: *path-program
+    program: main.py 
+    parameter: --mode train 
+    default: python ./main.py --mode train
+
+command-val:
+    path-interpreter: *path-interpreter
+    path-program: *path-program 
+    program: main.py
+    parameter: --mode val
+    default: python ./main.py --mode val
+
+command-test:
+    path-interpreter: *path-interpreter
+    path-program: *path-program 
+    program: main.py
+    parameter: --mode test 
+    default: python ./main.py --mode test
+
+parameters: 
+    path-data-train:
+        option: --train_dataset
+        type: string
+        nargs: 1
+        description: Path to training dataset
+        default: [] 
+        mode: [train]
+        hidden: false
+        optional: false
+        usage: basic
+    path-data-validate:
+        option: --val_dataset
+        type: string
+        nargs: 1
+        description: Path to validation dataset  
+        default: [] 
+        mode: [train, val]
+        hidden: false
+        optional: false
+        usage: basic
+    path-data-test:
+        option: --test_dataset
+        type: string
+        nargs: 1
+        description: Path to test dataset
+        default: [] 
+        mode: [test]
+        hidden: false
+        optional: false
+        usage: basic
+    path-category-file:
+        option:  --category_file
+        type: string
+        nargs: 1
+        description: Path to Category YAML File
+        default: ['../data/person_category.yaml'] 
+        mode: [train,test,val]
+        hidden: false
+        optional: false
+        usage: basic
+    path-model-output:
+        option: --model_dir
+        type: string
+        nargs: 1
+        description: Path to output the model and log
+        default: [./output/model/]
+        mode: [train]
+        hidden: true
+        optional: true
+        usage: system
+    path-model-input:
+        option: --pretrained_model
+        type: string
+        nargs: 1
+        description: path to pretrained model file, or model file for test and val
+        default: ['./data/yolov4csp_pretrain_dict.pth']
+        mode: [train, val, test]
+        hidden: false
+        optional: true
+        usage: basic
+    backbone:
+        option: --backbone
+        type: string
+        nargs: 1
+        description: Backbone
+        values:
+            - name: 'darknet'
+        default: ['darknet']
+        mode: [train,val,test]
+        hidden: false
+        optional: true
+        usage: basic
+    use-tensorboard-flag:
+        option: --use_tensorboard
+        type: bool
+        nargs: 1
+        description: Turn on/off tensorboard
+        default: [False]
+        mode: [train]
+        usage: system
+        hidden: true
+        optional: true
+    architecture:
+        option: --arch
+        type: string
+        nargs: 1
+        description: Backbone
+        values:
+            - name: 'yolov4csp'
+            - name: 'yolov7'
+            - name: 'yolor'
+            - name: 'mobilenetssd'
+            - name: 'yolov8'
+        default: ['yolov4csp']
+        mode: [train,val,test]
+        hidden: false
+        optional: true
+        usage: basic
+    weight-initialization:
+        option: --weight_initialization
+        type: string
+        nargs: 1
+        description: Type of Weight Initialization
+        values:
+            - name: 'kaiming'
+            - name: 'xavier'
+            - name: 'normal'
+        default: ['normal']
+        mode: [train]
+        hidden: true
+        optional: true
+        usage: advanced
+    path-output-yaml:
+        option: --out_dir
+        type: string
+        nargs: 1
+        description: Path of the output yaml files
+        default: [./output/result/]
+        mode: [train,val,test]
+        hidden: false
+        optional: true
+        usage: system
+    path-log:
+        option: --log_path
+        type: string
+        nargs: 1
+        description: Path to output the log
+        default: [./output/log/log.txt]
+        mode: [train, val, test]
+        hidden: true
+        optional: true
+        usage: system
+    path-checkpoint:
+        option:  --checkpoint_dir
+        type: string
+        nargs: 1
+        description: Path to output the checkpoint files
+        default:  [./output/checkpoint/]
+        mode: [train]
+        hidden: true
+        optional: true
+        usage: system
+    path-checkpoint-file:
+        option: --checkpoint_file
+        type: string
+        nargs: 1
+        description: Path of the input checkpoint file
+        default: [ ]
+        mode: [ train ]
+        hidden: true
+        optional: true
+        usage: system
+    checkpoint-step:
+        option: --checkpoint_step
+        type: int
+        nargs: 1
+        description: Number of runs to save checkpoint
+        default: [2]
+        mode: [train]
+        hidden: true
+        optional: true
+        usage: basic
+    checkpoint-load-flag:
+        option: --load_checkpoint
+        type: bool
+        nargs: 1
+        description: Turn on/off loading checkpoint
+        default: [False]
+        mode: [train]
+        optional: true
+        usage: system
+    path-result:
+        option: --out_dir
+        type: string
+        nargs: 1
+        description: Path to output the result
+        default: [./output/]
+        mode: [train, val, test]
+        hidden: true
+        optional: true
+        usage: system
+    gpu-ids:
+        option: --gpu_ids
+        type: int
+        nargs: '*'
+        description: Ids of GPU used for training
+        default: [0]
+        mode: [train,val, test]
+        hidden: true
+        optional: true
+        usage: system
+    image-size:
+        option: --img_size
+        type: int
+        nargs: 2
+        description: Image size input to the model
+        default: [320, 320]
+        mode: [train,val,test]
+        hidden: false
+        optional: false
+        usage: basic
+    max-runs:
+        option: --epochs
+        type: int
+        nargs: 1
+        description: Maximum number of epochs to be run
+        default: [20]
+        mode: [train]
+        hidden: false
+        optional: false
+        usage: basic
+    early-stop:
+        option: --early_stop
+        type: int
+        nargs: 1
+        description: Maximum number of epochs to be run
+        default: [20]
+        mode: [train]
+        hidden: false
+        optional: false
+        usage: basic
+    batch-size:
+        option: --batch_size
+        type: int
+        nargs: 1
+        description: batch size during training,val,test
+        default: [4]
+        mode: [train,val, test]
+        hidden: true
+        optional: true
+        usage: basic
+    yaml-batch-size:
+        option: --yaml_batch_size
+        type: int
+        nargs: 1
+        description: batch size to dump into output yaml
+        default: [4]
+        mode: [train,val, test]
+        hidden: true
+        optional: true
+        usage: system
+    learning-rate:
+        option: --lr
+        type: float
+        nargs: 1
+        description: Base or initial learning rate
+        default: [0.01]
+        mode: [train]
+        hidden: false
+        optional: true
+        usage: basic
+    focalloss-gamma:
+        option: --fl_gamma
+        type: float
+        nargs: 1
+        description: focal loss gamma; (range 0~3)
+        default: [0.0]
+        mode: [train]
+        hidden: false
+        optional: true
+        usage: advanced
+    image-translation:
+        option: --translate
+        type: float
+        nargs: 1
+        description: image translation (+/- fraction); range 0~1
+        default: [0.0]
+        mode: [train]
+        hidden: false
+        optional: true        
+        usage: advanced
+    flip-updown:
+        option: --flipud
+        type: float
+        nargs: 1
+        description: image flip up-down (probability); range 0~1
+        default: [0.0]
+        mode: [train]
+        hidden: false
+        optional: true   
+        usage: advanced
+    mixup:
+        option: --mixup
+        type: float
+        nargs: 1
+        description: image mixup (probability); range 0~1
+        default: [0.0]
+        mode: [train]
+        hidden: false
+        optional: true 
+        usage: advanced
+    image-rotation:
+        option: --degrees
+        type: float
+        nargs: 1
+        description: image rotation (+/- deg); range 0~360
+        default: [0.0]
+        mode: [train]
+        hidden: false
+        optional: true 
+        usage: advanced
+    #image-mosaic:
+    #    option: --mosaic
+    #    type: bool
+    #    nargs: 1
+    #    description: image mosaic for training
+    #    default: [False]
+    #    mode: [train]
+    #    usage: advanced
+    #    hidden: false
+    #    optional: true
+    conf-thres:
+        option: --conf_thres
+        type: float
+        nargs: 1
+        description: Confidence threshold during test; range 0~1
+        default: [0.05]
+        mode: [test]
+        hidden: false
+        optional: true
+        usage: basic
+    iou-thres:
+        option: --iou_thres
+        type: float
+        nargs: 1
+        description: IOU threshold during test; range 0~1
+        default: [0.9]
+        mode: [test]
+        hidden: false
+        optional: true
+        usage: basic
+    save-c-model:
+        option: --save_c_model
+        type: bool
+        nargs: 1
+        description: Turn on/off saving C Models
+        default: [True]
+        mode: [train,val]
+        hidden: true
+        optional: true
+        usage: system
+
+    model-16bit:
+        option: --use_amp
+        type: bool
+        nargs: 1
+        description: Turn on/off Mixed precision training
+        default: [True]
+        mode: [train]
+        usage: advanced
+        hidden: true
+        optional: true
+
+    DDP-distributed:
+        option: --use_ddp
+        type: bool
+        nargs: 1
+        description: Turn on/off DDP training mode
+        default: [False]
+        mode: [train]
+        usage: advanced
+        hidden: true
+        optional: true
+    DDP-numGPU:
+        option: --world_size
+        type: int
+        nargs: 1
+        description: World size/Number of GPUs in use for DDP training
+        default: [1]
+        mode: [train]
+        usage: advanced
+        hidden: true
+        optional: true
+    transforms:
+        option: --transforms
+        type: string
+        nargs: '*'
+        description: Transforms to be used for training
+        default: ['degrees',"scale"]
+        mode: [train]
+        usage: advanced
+        hidden: true
+        optional: true        
