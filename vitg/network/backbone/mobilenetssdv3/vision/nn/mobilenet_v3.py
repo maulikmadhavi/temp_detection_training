@@ -3,16 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# def get_model_parameters(model):
-#     total_parameters = 0
-#     for layer in list(model.parameters()):
-#         layer_parameter = 1
-#         for l in list(layer.size()):
-#             layer_parameter *= l
-#         total_parameters += layer_parameter
-#     return total_parameters
-
-
 def _weights_init(m):
     if isinstance(m, nn.Conv2d):
         torch.nn.init.xavier_uniform_(m.weight)
@@ -22,7 +12,7 @@ def _weights_init(m):
         m.weight.data.fill_(1)
         m.bias.data.zero_()
     elif isinstance(m, nn.Linear):
-        n = m.weight.size(1)
+        m.weight.size(1)
         m.weight.data.normal_(0, 0.01)
         m.bias.data.zero_()
 
@@ -68,35 +58,28 @@ class SqueezeBlock(nn.Module):
         )
 
     def forward(self, x):
-        batch, channels, height, width = x.size()
-        # out = F.avg_pool2d(x, kernel_size=[height, width]).view(batch, -1)
+        batch, channels, _, _ = x.size()
         out = self.avg_pool(x).view(batch, channels)
         out = self.dense(out)
         out = out.view(batch, channels, 1, 1)
-        # out = hard_sigmoid(out)
 
         return out * x
 
 
 class MobileBlock(nn.Module):
     # def __init__(self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size, dropout_rate=1.0):
-    def __init__(
-        self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size
-    ):
+    def __init__(self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size):
         super(MobileBlock, self).__init__()
         self.out_channels = out_channels
         self.nonLinear = nonLinear
         self.SE = SE
-        # self.dropout_rate = dropout_rate
         padding = (kernal_size - 1) // 2
 
         self.use_connect = stride == 1 and in_channels == out_channels
 
         activation = nn.ReLU if self.nonLinear == "RE" else h_swish
         self.conv = nn.Sequential(
-            nn.Conv2d(
-                in_channels, exp_size, kernel_size=1, stride=1, padding=0, bias=False
-            ),
+            nn.Conv2d(in_channels, exp_size, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(exp_size),
             activation(inplace=True),
         )
@@ -114,7 +97,6 @@ class MobileBlock(nn.Module):
 
         if self.SE:
             self.squeeze_block = SqueezeBlock(exp_size)
-
         self.point_conv = nn.Sequential(
             nn.Conv2d(exp_size, out_channels, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(out_channels),
@@ -129,7 +111,6 @@ class MobileBlock(nn.Module):
         # Squeeze and Excite
         if self.SE:
             out = self.squeeze_block(out)
-
         # point-wise conv
         out = self.point_conv(out)
 
@@ -137,11 +118,10 @@ class MobileBlock(nn.Module):
         return x + out if self.use_connect else out
 
 
+
 class MobileNetV3(nn.Module):
     # def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0):
-    def __init__(
-        self, model_mode="SMALL", num_classes=30, multiplier=1.0, dropout_rate=0.0
-    ):
+    def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0, dropout_rate=0.0):
         super(MobileNetV3, self).__init__()
         self.num_classes = num_classes
 
@@ -198,8 +178,7 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                    )
-                )
+                ))
             self.block = nn.Sequential(*self.block)
 
             out_conv1_in = _make_divisible(160 * multiplier)
@@ -218,7 +197,6 @@ class MobileNetV3(nn.Module):
                 nn.Dropout(dropout_rate),
                 nn.Conv2d(out_conv2_out, self.num_classes, kernel_size=1, stride=1),
             )
-
         elif model_mode == "SMALL":
             layers = [
                 [16, 16, 3, 2, "RE", True, 16],
@@ -256,8 +234,7 @@ class MobileNetV3(nn.Module):
                     kernel_size=3,
                     stride=2,
                     padding=1,
-                )
-            )
+            ))
             self.features.append(nn.BatchNorm2d(init_conv_out))
             self.features.append(h_swish(inplace=True))
 
@@ -283,8 +260,7 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                    )
-                )
+                ))
                 self.features.append(
                     MobileBlock(
                         in_channels,
@@ -294,8 +270,7 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                    )
-                )
+                ))
             self.block = nn.Sequential(*self.block)
 
             out_conv1_in = _make_divisible(96 * multiplier)
@@ -307,9 +282,7 @@ class MobileNetV3(nn.Module):
                 h_swish(inplace=True),
             )
             self.avg_pool = nn.AdaptiveAvgPool2d(1)
-            self.features.append(
-                nn.Conv2d(out_conv1_in, out_conv1_out, kernel_size=1, stride=1)
-            )
+            self.features.append(nn.Conv2d(out_conv1_in, out_conv1_out, kernel_size=1, stride=1))
             self.features.append(SqueezeBlock(out_conv1_out))
             self.features.append(nn.BatchNorm2d(out_conv1_out))
             self.features.append(h_swish(inplace=True))
@@ -322,22 +295,17 @@ class MobileNetV3(nn.Module):
                 nn.Dropout(dropout_rate),
                 nn.Conv2d(out_conv2_out, self.num_classes, kernel_size=1, stride=1),
             )
-            self.features.append(
-                nn.Conv2d(out_conv2_in, out_conv2_out, kernel_size=1, stride=1)
-            )
+            self.features.append(nn.Conv2d(out_conv2_in, out_conv2_out, kernel_size=1, stride=1))
             self.features.append(h_swish(inplace=True))
-            # self.features.append(nn.Dropout(dropout_rate))
 
             self.features = nn.Sequential(*self.features)
-
         self.apply(_weights_init)
 
     def forward(self, x):
         out = self.init_conv(x)
         out = self.block(out)
         out = self.out_conv1(out)
-        batch, channels, height, width = out.size()
-        # out = F.avg_pool2d(out, kernel_size=[height, width])
+        batch, channels, _, _ = out.size()
         out = self.avg_pool(out)
         out = self.out_conv2(out).view(batch, -1)
         return out

@@ -28,3 +28,20 @@ coverage report \
 --data-file=.coverage_run2_$arch \
 -m `find . | grep .py | grep -v pyc`  > outputreport_run2_$arch.txt
 done
+
+
+
+# for arch in  yolov4csp yolov7 yolov8 mobilenetssd yolor;
+# do
+#     python  main.py --arch $arch --epochs 2
+
+#     mv output output_temp_run3_$arch
+
+#     echo "done $arch"
+
+#     echo ""
+#     echo "--------------------------------------"
+#     echo ""
+
+# done
+

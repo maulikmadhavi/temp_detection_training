@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from vitg.network.backbone.vitgyolov8 import yolo  # noqa
+  # noqa
 from vitg.network.backbone.vitgyolov8.nn.tasks import (
     ClassificationModel,
     DetectionModel,
@@ -13,7 +13,6 @@ from vitg.network.backbone.vitgyolov8.nn.tasks import (
     nn,
 )
 from vitg.network.backbone.vitgyolov8.yolo.cfg import get_cfg
-# from vitg.network.backbone.vitgyolov8.yolo.engine.exporter import Exporter
 from vitg.network.backbone.vitgyolov8.yolo.utils import (
     DEFAULT_CFG,
     LOGGER,
@@ -48,11 +47,11 @@ MODEL_MAP = {
         "yolo.TYPE.segment.SegmentationTrainer",
         "yolo.TYPE.segment.SegmentationValidator",
         "yolo.TYPE.segment.SegmentationPredictor",
-    ],
-}
+],}
 
 
-class YOLO:
+
+class _Yolo:
     """
     YOLO
 
@@ -68,27 +67,22 @@ class YOLO:
             type (str): Type/version of models to use. Defaults to "v8".
         """
         self.type = type
-        self.ModelClass = None  # model class
-        self.TrainerClass = None  # trainer class
-        self.ValidatorClass = None  # validator class
-        self.PredictorClass = None  # predictor class
-        self.predictor = None  # reuse predictor
-        self.model = None  # model object
-        self.trainer = None  # trainer object
-        self.task = None  # task type
-        self.ckpt = None  # if loaded from *.pt
-        self.cfg = None  # if loaded from *.yaml
+        self.ModelClass = None
+        self.TrainerClass = None
+        self.ValidatorClass = None
+        self.PredictorClass = None
+        self.predictor = None
+        self.model = None
+        self.trainer = None
+        self.task = None
+        self.ckpt = None
+        self.cfg = None
         self.ckpt_path = None
-        self.overrides = {}  # overrides for trainer object
+        self.overrides = {}
         self.metrics_data = None
-
-        # Load or create new YOLO model
         suffix = Path(model).suffix
         if not suffix and Path(model).stem in GITHUB_ASSET_STEMS:
-            model, suffix = (
-                Path(model).with_suffix(".pt"),
-                ".pt",
-            )  # add suffix, i.e. yolov8n -> yolov8n.pt
+            (model, suffix) = (Path(model).with_suffix(".pt"), ".pt")
         if suffix == ".yaml":
             self._new(model)
         else:
@@ -105,8 +99,8 @@ class YOLO:
             cfg (str): model configuration file
             verbose (bool): display model info on load
         """
-        self.cfg = check_yaml(cfg)  # check YAML
-        cfg_dict = yaml_load(self.cfg, append_filename=True)  # model dict
+        self.cfg = check_yaml(cfg)
+        cfg_dict = yaml_load(self.cfg, append_filename=True)
         self.task = guess_model_task(cfg_dict)
         (
             self.ModelClass,
@@ -114,9 +108,7 @@ class YOLO:
             self.ValidatorClass,
             self.PredictorClass,
         ) = self._assign_ops_from_task()
-        self.model = self.ModelClass(
-            cfg_dict, verbose=verbose and RANK == -1
-        )  # initialize
+        self.model = self.ModelClass(cfg_dict, verbose=verbose and RANK == -1)
 
     def _load(self, weights: str):
         """
@@ -127,13 +119,13 @@ class YOLO:
         """
         suffix = Path(weights).suffix
         if suffix == ".pt":
-            self.model, self.ckpt = attempt_load_one_weight(weights)
+            (self.model, self.ckpt) = attempt_load_one_weight(weights)
             self.task = self.model.args["task"]
             self.overrides = self.model.args
             self._reset_ckpt_args(self.overrides)
         else:
             check_file(weights)
-            self.model, self.ckpt = weights, None
+            (self.model, self.ckpt) = (weights, None)
             self.task = guess_model_task(weights)
         self.ckpt_path = weights
         (
@@ -149,10 +141,7 @@ class YOLO:
         """
         if not isinstance(self.model, nn.Module):
             raise TypeError(
-                f"model='{self.model}' must be a *.pt PyTorch model, but is a different type. "
-                f"PyTorch models can be used to train, val, predict and export, i.e. "
-                f"'yolo export model=yolov8n.pt', but exported formats like ONNX, TensorRT etc. only "
-                f"support 'predict' and 'val' modes, i.e. 'yolo predict model=yolov8n.onnx'."
+                f"model='{self.model}' must be a *.pt PyTorch model, but is a different type. PyTorch models can be used to train, val, predict and export, i.e. 'yolo export model=yolov8n.pt', but exported formats like ONNX, TensorRT etc. only support 'predict' and 'val' modes, i.e. 'yolo predict model=yolov8n.onnx'."
             )
 
     def reset(self):
@@ -186,10 +175,10 @@ class YOLO:
 
         Args:
             source (str | int | PIL | np.ndarray): The source of the image to make predictions on.
-                          Accepts all source types accepted by the YOLO model.
+                Accepts all source types accepted by the YOLO model.
             stream (bool): Whether to stream the predictions or not. Defaults to False.
             **kwargs : Additional keyword arguments passed to the predictor.
-                       Check the 'configuration' section in the documentation for all available options.
+                Check the 'configuration' section in the documentation for all available options.
 
         Returns:
             (List[vitg.vitgyolov8.yolo.engine.results.Results]): The prediction results.
@@ -198,11 +187,11 @@ class YOLO:
         overrides["conf"] = 0.25
         overrides.update(kwargs)
         overrides["mode"] = "predict"
-        overrides["save"] = kwargs.get("save", False)  # not save files by default
+        overrides["save"] = kwargs.get("save", False)
         if not self.predictor:
             self.predictor = self.PredictorClass(overrides=overrides)
             self.predictor.setup_model(model=self.model)
-        else:  # only update args if predictor is already setup
+        else:
             self.predictor.args = get_cfg(self.predictor.args, overrides)
         is_cli = sys.argv[0].endswith("yolo") or sys.argv[0].endswith("vitg.vitgyolov8")
         return (
@@ -221,16 +210,14 @@ class YOLO:
             **kwargs : Any other args accepted by the validators. To see all args check 'configuration' section in docs
         """
         overrides = self.overrides.copy()
-        overrides["rect"] = True  # rect batches as default
+        overrides["rect"] = True
         overrides.update(kwargs)
         overrides["mode"] = "val"
         args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
         args.data = data or args.data
         args.task = self.task
-        if args.imgsz == DEFAULT_CFG.imgsz and not isinstance(self.model, (str, Path)):
-            args.imgsz = self.model.args[
-                "imgsz"
-            ]  # use trained imgsz unless custom value is passed
+        if args.imgsz == DEFAULT_CFG.imgsz and (not isinstance(self.model, (str, Path))):
+            args.imgsz = self.model.args["imgsz"]
         args.imgsz = check_imgsz(args.imgsz, max_dim=1)
 
         validator = self.ValidatorClass(args=args)
@@ -253,11 +240,9 @@ class YOLO:
         args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
         args.task = self.task
         if args.imgsz == DEFAULT_CFG.imgsz:
-            args.imgsz = self.model.args[
-                "imgsz"
-            ]  # use trained imgsz unless custom value is passed
+            args.imgsz = self.model.args["imgsz"]
         if args.batch == DEFAULT_CFG.batch:
-            args.batch = 1  # default to 1 if not modified
+            args.batch = 1
         exporter = Exporter(overrides=args)
         return exporter(model=self.model)
 
@@ -272,33 +257,26 @@ class YOLO:
         overrides = self.overrides.copy()
         overrides.update(kwargs)
         if kwargs.get("cfg"):
-            LOGGER.info(
-                f"cfg file passed. Overriding default params with {kwargs['cfg']}."
-            )
+            LOGGER.info(f"cfg file passed. Overriding default params with {kwargs['cfg']}.")
             overrides = yaml_load(check_yaml(kwargs["cfg"]), append_filename=True)
         overrides["task"] = self.task
         overrides["mode"] = "train"
         if not overrides.get("data"):
-            raise AttributeError(
-                "Dataset required but missing, i.e. pass 'data=coco128.yaml'"
-            )
+            raise AttributeError("Dataset required but missing, i.e. pass 'data=coco128.yaml'")
         if overrides.get("resume"):
             overrides["resume"] = self.ckpt_path
 
         self.trainer = self.TrainerClass(overrides=overrides)
-        if not overrides.get("resume"):  # manually set model only if not resuming
+        if not overrides.get("resume"):
             self.trainer.model = self.trainer.get_model(
                 weights=self.model if self.ckpt else None, cfg=self.model.yaml
             )
             self.model = self.trainer.model
         self.trainer.train()
-        # update model and cfg after training
         if RANK in {0, -1}:
-            self.model, _ = attempt_load_one_weight(str(self.trainer.best))
+            (self.model, _) = attempt_load_one_weight(str(self.trainer.best))
             self.overrides = self.model.args
-            self.metrics_data = getattr(
-                self.trainer.validator, "metrics", None
-            )  # TODO: no metrics returned by DDP
+            self.metrics_data = getattr(self.trainer.validator, "metrics", None)
 
     def train_returnmodel(self, **kwargs):
         """
@@ -311,28 +289,21 @@ class YOLO:
         overrides = self.overrides.copy()
         overrides.update(kwargs)
         if kwargs.get("cfg"):
-            LOGGER.info(
-                f"cfg file passed. Overriding default params with {kwargs['cfg']}."
-            )
+            LOGGER.info(f"cfg file passed. Overriding default params with {kwargs['cfg']}.")
             overrides = yaml_load(check_yaml(kwargs["cfg"]), append_filename=True)
         overrides["task"] = self.task
         overrides["mode"] = "train"
         if not overrides.get("data"):
-            raise AttributeError(
-                "Dataset required but missing, i.e. pass 'data=coco128.yaml'"
-            )
+            raise AttributeError("Dataset required but missing, i.e. pass 'data=coco128.yaml'")
         if overrides.get("resume"):
             overrides["resume"] = self.ckpt_path
 
         self.trainer = self.TrainerClass(overrides=overrides)
-        if not overrides.get("resume"):  # manually set model only if not resuming
+        if not overrides.get("resume"):
             self.trainer.model = self.trainer.get_model(
                 weights=self.model if self.ckpt else None, cfg=self.model.yaml
             )
             self.model = self.trainer.model
-        # self.trainer.train()
-        # update model and cfg after training
-
         return self.model
 
     def to(self, device):
@@ -346,11 +317,11 @@ class YOLO:
         self.model.to(device)
 
     def _assign_ops_from_task(self):
-        model_class, train_lit, val_lit, pred_lit = MODEL_MAP[self.task]
+        (model_class, train_lit, val_lit, pred_lit) = MODEL_MAP[self.task]
         trainer_class = eval(train_lit.replace("TYPE", f"{self.type}"))
         validator_class = eval(val_lit.replace("TYPE", f"{self.type}"))
         predictor_class = eval(pred_lit.replace("TYPE", f"{self.type}"))
-        return model_class, trainer_class, validator_class, predictor_class
+        return (model_class, trainer_class, validator_class, predictor_class)
 
     @property
     def names(self):
@@ -372,10 +343,7 @@ class YOLO:
         Returns metrics if computed
         """
         if not self.metrics_data:
-            LOGGER.info(
-                "No metrics data found! Run training or validation operation first."
-            )
-
+            LOGGER.info("No metrics data found! Run training or validation operation first.")
         return self.metrics_data
 
     @staticmethod
