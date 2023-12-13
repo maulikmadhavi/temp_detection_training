@@ -432,7 +432,7 @@ class Output:
                     # for boxs in sample_data_1:
                     for annidx, boxs in enumerate(sample_data_1):
                         conf = str(boxs[6])
-                        gt = np.int(boxs[1])
+                        gt = np.int16(boxs[1])
                         temp_a = {
                             "input_id": str(paths[batch_img_idx]),
                             "bbox": [
@@ -469,7 +469,7 @@ class Output:
                         habs = (ymax - ymin) * h0
 
                         conf = boxs[6].astype(float).item()
-                        gt = np.int(boxs[1])
+                        gt = np.int16(boxs[1])
                         new_line = [xmin, ymin, xmax, ymax, conf, gt]
                         new_line_abs = [xminabs, yminabs, wabs, habs, conf, gt]
                         # take detected body in [xmin, ymin, w, h, conf, class/label] format
