@@ -4,3 +4,4 @@ output_*/
 outputreport_*
 .coverage*
 outputreport
+__pycache__/

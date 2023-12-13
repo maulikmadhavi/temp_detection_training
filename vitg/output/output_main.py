@@ -13,7 +13,7 @@ from vitg.network.backbone.vitgyolov8.yolo.utils import ops as yolov8ops
 from vitg.symbols.network import Darknet
 
 # dataloader
-from vitg.utils.datasets import create_dataloader_fortest2
+from vitg.utils.datasets import create_test_dataloader
 
 # loss function for yolov4csp
 
@@ -589,7 +589,7 @@ class Output:
             _ = (
                 model(img.half() if half else img) if device.type != "cpu" else None
             )  # run once
-            dataloader = create_dataloader_fortest2(
+            dataloader = create_test_dataloader(
                 dataset,
                 imgsz,
                 1,
@@ -701,7 +701,7 @@ class Output:
                     for annidx, boxs in enumerate(sample_data_1):
                         conf = str(boxs[6])
                         # conf = np.int(boxs[6])
-                        gt = np.int(boxs[1])
+                        gt = np.int16(boxs[1])
                         temp_a = {
                             "input_id": str(paths[batch_img_idx]),
                             "bbox": [
@@ -737,7 +737,7 @@ class Output:
                         habs = (ymax - ymin) * h0
 
                         conf = boxs[6].astype(float).item()
-                        gt = np.int(boxs[1])
+                        gt = np.int16(boxs[1])
                         new_line = [xmin, ymin, xmax, ymax, conf, gt]
                         new_line_abs = [xminabs, yminabs, wabs, habs, conf, gt]
                         # take detected body in [xmin, ymin, w, h, conf, class/label] format

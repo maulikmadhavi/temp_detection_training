@@ -1,10 +1,9 @@
-from tqdm import tqdm
-
 from vitg.utils.datasets import (
     create_dataloader,
-    create_dataloader_fortest2,
     create_dataloader_noletterbox,
+    create_test_dataloader,
 )
+
 
 
 def get_test_loader(config, hyp, batch_size, gs, imgsz_test):
@@ -68,7 +67,7 @@ def get_test_loader(config, hyp, batch_size, gs, imgsz_test):
             world_size=config.world_size,
         )[0]
         # train_out.yml
-    testloader_train_yml = create_dataloader_fortest2(
+    testloader_train_yml = create_test_dataloader(
         config.train_dataset,
         imgsz_test,
         1,
@@ -83,7 +82,7 @@ def get_test_loader(config, hyp, batch_size, gs, imgsz_test):
     )[0]
 
     # val_out.yml
-    testloader_val_yml = create_dataloader_fortest2(
+    testloader_val_yml = create_test_dataloader(
         config.val_dataset,
         imgsz_test,
         1,
@@ -138,8 +137,7 @@ def get_intertrain_loader(config, hyp, batch_size, gs, imgsz_test):
 
 def get_train_loader(config, hyp, batch_size, rank, gs, imgsz, use_rec_train):
     if config.arch == "mobilenetssd":
-        use_rect = True
-        dataloader, dataset = create_dataloader_noletterbox(
+        dataloader, _ = create_dataloader_noletterbox(
             config.train_dataset,
             300,
             batch_size,
@@ -152,8 +150,7 @@ def get_train_loader(config, hyp, batch_size, rank, gs, imgsz, use_rec_train):
             rect=True,
         )
     elif config.arch == "yolov8":
-        use_rect = True
-        dataloader, dataset = create_dataloader_noletterbox(
+        dataloader, _ = create_dataloader_noletterbox(
             config.train_dataset,
             imgsz,
             batch_size,
@@ -166,8 +163,7 @@ def get_train_loader(config, hyp, batch_size, rank, gs, imgsz, use_rec_train):
             rect=True,
         )
     else:
-        # use_rect = False
-        dataloader, dataset = create_dataloader(
+        dataloader, _ = create_dataloader(
             config.train_dataset,
             imgsz,
             batch_size,
