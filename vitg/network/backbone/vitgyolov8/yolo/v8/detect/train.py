@@ -171,8 +171,7 @@ class Loss:
             out = torch.zeros(batch_size, counts.max(), 5, device=self.device)
             for j in range(batch_size):
                 matches = i == j
-                n = matches.sum()
-                if n:
+                if n := matches.sum():
                     out[j, :n] = targets[matches, 1:]
             out[..., 1:5] = xywh2xyxy(out[..., 1:5].mul_(scale_tensor))
         return out
@@ -331,6 +330,3 @@ def train(cfg=DEFAULT_CFG, use_python=False):
         trainer.train()
 
 
-if __name__ == "__main__":
-    # train()
-    pass

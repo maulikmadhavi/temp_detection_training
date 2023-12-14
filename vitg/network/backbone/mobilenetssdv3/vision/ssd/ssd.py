@@ -56,33 +56,26 @@ class SSD(nn.Module):
         locations = []
         start_layer_index = 0
         header_index = 0
+        added_layer = None
         for index_0, end_layer_index in enumerate(self.source_layer_indexes):  # 总共要循环两次
             if isinstance(end_layer_index, GraphPath):  # 第一次循环执行
                 path = end_layer_index
                 end_layer_index = end_layer_index.s0
-                added_layer = None
             else:  # 第二次循环执行
-                added_layer = None
                 path = None
 
-            for index_1, layer in enumerate(
-                self.base_net[start_layer_index:end_layer_index]
-            ):
+            for layer in self.base_net[start_layer_index:end_layer_index]:
                 x = layer(x)
-            if added_layer:
-                y = added_layer(x)
-            else:
-                y = x
-
+            y = added_layer(x) if added_layer else x
             if path:  # 只在第一次循环有值 GraphPath(s0=11, name='conv', s1=-1)
                 sub = getattr(self.base_net[end_layer_index], path.name)
-                for index_2, layer in enumerate(sub):
+                for layer in sub:
                     y = layer(y)
-                # sub: Sequential(
-                #   (0): Conv2d(48, 288, kernel_size=(1, 1), stride=(1, 1), bias=False)
-                #   (1): BatchNorm2d(288, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-                #   (2): h_swish()
-                # )
+                        # sub: Sequential(
+                        #   (0): Conv2d(48, 288, kernel_size=(1, 1), stride=(1, 1), bias=False)
+                        #   (1): BatchNorm2d(288, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        #   (2): h_swish()
+                        # )
 
             start_layer_index = end_layer_index
             confidence, location = self.compute_header(header_index, y)
@@ -103,18 +96,17 @@ class SSD(nn.Module):
         confidences = torch.cat(confidences, 1)
         locations = torch.cat(locations, 1)
 
-        if self.is_test:
-            confidences = F.softmax(confidences, dim=2)
-            boxes = box_utils.convert_locations_to_boxes(
-                locations,
-                self.priors,
-                self.config.center_variance,
-                self.config.size_variance,
-            )
-            boxes = box_utils.center_form_to_corner_form(boxes)
-            return confidences, boxes
-        else:
+        if not self.is_test:
             return confidences, locations
+        confidences = F.softmax(confidences, dim=2)
+        boxes = box_utils.convert_locations_to_boxes(
+            locations,
+            self.priors,
+            self.config.center_variance,
+            self.config.size_variance,
+        )
+        boxes = box_utils.center_form_to_corner_form(boxes)
+        return confidences, boxes
 
     def compute_header(self, i, x):
         confidence = self.classification_headers[i](x)

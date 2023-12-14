@@ -54,9 +54,12 @@ def generate_ssd_priors(specs: List[SSDSpec], image_size, clamp=True) -> torch.T
             h = w = size / image_size
             for ratio in spec.aspect_ratios:
                 ratio = math.sqrt(ratio)
-                priors.append([x_center, y_center, w * ratio, h / ratio])
-                priors.append([x_center, y_center, w / ratio, h * ratio])
-
+                priors.extend(
+                    (
+                        [x_center, y_center, w * ratio, h / ratio],
+                        [x_center, y_center, w / ratio, h * ratio],
+                    )
+                )
     priors = torch.tensor(priors)
     if clamp:
         torch.clamp(priors, 0.0, 1.0, out=priors)
@@ -290,7 +293,7 @@ def soft_nms(box_scores, score_threshold, sigma=0.5, top_k=-1):
         ious = iou_of(cur_box.unsqueeze(0), box_scores[:, :-1])
         box_scores[:, -1] = box_scores[:, -1] * torch.exp(-(ious * ious) / sigma)
         box_scores = box_scores[box_scores[:, -1] > score_threshold, :]
-    if len(picked_box_scores) > 0:
+    if picked_box_scores:
         return torch.stack(picked_box_scores)
     else:
         return torch.tensor([])

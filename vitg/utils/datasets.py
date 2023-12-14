@@ -265,16 +265,16 @@ class LoaderBaseClass(Dataset):
 
 
     def load_image_label_noletterbox(self, index):
-        img, labels = self.load_mosaic(index)
+        img, labels = load_mosaic(self, index)
         shapes = None
         if random.random() < self.hyp["mixup"]:
             # Load mosaic
-            img2, labels2 = self.load_mosaic(random.randint(0, self.length - 1))
+            img2, labels2 = load_mosaic(self, random.randint(0, self.length - 1))
             r = np.random.beta(8.0, 8.0)  # mixup ratio, alpha-beta=8.8
             img = (img + img2 * (1 - r)).astype(np.uint8)
             labels = np.concatenate((labels, labels2), axis=0)
         else:
-            img, (h0, w0), (h, w) = self.load_image_sqr(index)
+            img, (h0, w0), (h, w) = load_image_sqr(self, index)
         # Letterbox
         # shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
         shape = self.img_size  # final letterboxed shape
@@ -525,9 +525,38 @@ class LoadImagesAndLabels_noletterbox(LoaderBaseClass):  # for training/testing
         # because random_prespective uses absolute coordinates
         # value  to generate transformation
 
-        img, labels, nL = self.load_image_label_noletterbox(img, labels, shapes)
+        # img, labels, nL = self.load_image_label_noletterbox(index)
+        img, labels = load_mosaic(self, index)
+        shapes = None
+        if random.random() < self.hyp["mixup"]:
+            # Load mosaic
+            img2, labels2 = load_mosaic(self, random.randint(0, self.length - 1))
+            r = np.random.beta(8.0, 8.0)  # mixup ratio, alpha-beta=8.8
+            img = (img + img2 * (1 - r)).astype(np.uint8)
+            labels = np.concatenate((labels, labels2), axis=0)
+        else:
+            img, (h0, w0), (h, w) = load_image_sqr(self, index)
+        # Letterbox
+        # shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
+        shape = self.img_size  # final letterboxed shape
+        img, ratio, pad = letterbox_disable(img, shape, auto=False, scaleup=self.augment)
+        # shapes = (h / h, w / w), ((h / h, w / w), pad) if not self.rect else ((h / h, w / w), pad)
+        shape = (h, w), ((h / h0, w / w0), pad)
+        # Load labels
         
-        
+        labels = []
+        for item in self.unpacked[index][1]:
+            labels.append([self.category_dic.index(int(item["category_id"][0])), item["bbox"][0], item["bbox"][1] + item["bbox"][3] / 2,
+                          item["bbox"][2] / 2, item["bbox"][3]])
+        labels = np.array(labels, dtype=np.float16)
+        if labels.size == 0:
+            return torch.zeros((1, *self.img_size, 3), dtype=torch.float32), torch.zeros((1, 50), dtype=torch.float32), None
+        # Normalized xywh to pixel xyxy format
+        labels[:, 1] = (ratio[0] * img.shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]) / img.shape[1]
+        labels[:, 2] = (ratio[1] * img.shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]) / img.shape[0]
+        labels[:, 3] = ratio[0] * img.shape[1] * labels[:, 3] / img.shape[1]
+        labels[:, 4] = ratio[1] * img.shape[0] * labels[:, 4] / img.shape[0]
+                
         img, labels_out = self.apply_flips(img, labels, nL)
 
         # Convert
@@ -593,12 +622,13 @@ class LoadImagesAndLabels_test(LoaderBaseClass):  # for training/testing
         hyp = self.hyp
         if self.mosaic:
             # Load mosaic
-            img, labels = load_mosaic(self, index)
+            img, labels = self.load_mosaic(index)
             shapes = None
 
+            hyp = self.hyp
             # MixUp https://arxiv.org/pdf/1710.09412.pdf
             if random.random() < hyp["mixup"]:
-                img2, labels2 = load_mosaic(self, random.randint(0, self.length - 1))
+                img2, labels2 = self.load_mosaic(random.randint(0, self.length - 1))
                 # img2, labels2 = load_mosaic(self, random.randint(0, len(self.samples) - 1))
                 r = np.random.beta(8.0, 8.0)  # mixup ratio, alpha=beta=8.0
                 img = (img * r + img2 * (1 - r)).astype(np.uint8)
@@ -627,8 +657,6 @@ class LoadImagesAndLabels_test(LoaderBaseClass):  # for training/testing
 
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
-            # Load labels
-            labels = []
             unpacked_labels_nomosaic = [
                 [
                     item["category_id"][0],
@@ -642,10 +670,7 @@ class LoadImagesAndLabels_test(LoaderBaseClass):  # for training/testing
             # unpacked_labels_nomosaic=[[self.categpry_dic.index(int(item["category_id"][0])),item["bbox"][0],item["bbox"][1],item["bbox"][2],item["bbox"][3]] for item in self.unpacked[1]]
             x = np.array(unpacked_labels_nomosaic, dtype=np.float16)
 
-            if x.size > 0:
-                # Normalized xywh to pixel xyxy format
-                labels = self.normxywh_to_pixelxyxy(h, w, ratio, pad, x)
-
+            labels = self.normxywh_to_pixelxyxy(h, w, ratio, pad, x) if x.size > 0 else []
         nL = len(labels)  # number of labels
         if nL:
             labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])  # convert xyxy to xywh

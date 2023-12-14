@@ -61,7 +61,6 @@ CLI_HELP_MSG = f"""
 CFG_FLOAT_KEYS = {"warmup_epochs", "box", "cls", "dfl", "degrees", "shear"}
 CFG_FRACTION_KEYS = {
     "dropout",
-    "iou",
     "lr0",
     "lrf",
     "momentum",
@@ -225,8 +224,7 @@ def check_cfg_mismatch(base: Dict, custom: Dict, e=None):
         - base (Dict): a dictionary of base configuration options
     """
     base, custom = (set(x.keys()) for x in (base, custom))
-    mismatched = [x for x in custom if x not in base]
-    if mismatched:
+    if mismatched := [x for x in custom if x not in base]:
         string = ""
         for x in mismatched:
             matches = get_close_matches(x, base)  # key list
@@ -380,7 +378,7 @@ def entrypoint(debug=""):
     )
 
     # Mode
-    mode = overrides.get("mode", None)
+    mode = overrides.get("mode")
     if mode is None:
         mode = DEFAULT_CFG.mode or "predict"
         LOGGER.warning(

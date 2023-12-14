@@ -122,12 +122,11 @@ class BaseTrainer:
         if self.config.use_amp:
             # Backward
             scaler.scale(loss).backward()
+        elif self.config.arch == "mobilenetssd":
+            loss.backward()
         else:
-            if self.config.arch == "mobilenetssd":
-                loss.backward()
-            else:
-                with torch.autograd.detect_anomaly():
-                    loss.backward(retain_graph=True)
+            with torch.autograd.detect_anomaly():
+                loss.backward(retain_graph=True)
 
     def optimizer_step(self, scaler, model):
         if self.config.use_amp:

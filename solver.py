@@ -126,14 +126,13 @@ class Solver(BaseTrainer):
         ) in pbar:
             if forceclose_check.check_close():
                 print("detect forceclose in train bach")
-                if epoch == 0:
-                    forceclose_check.reset_forceclose()
-                    print(
-                        "Since the training is not completed, reseting the forceclose status..."
-                    )
-                else:
+                if epoch != 0:
                     break
 
+                forceclose_check.reset_forceclose()
+                print(
+                    "Since the training is not completed, reseting the forceclose status..."
+                )
             gloc, glabel = self.get_gloc_glabel(targets, self.net)
 
             self.ni = (
@@ -209,12 +208,12 @@ class Solver(BaseTrainer):
         self.config.imgsz_test = imgsz_test
         self.config.gs = gs
         self.config.rank = rank
-        
+
         if cuda and rank == -1 and torch.cuda.device_count() > 1:
             self.net.model = torch.nn.DataParallel(self.net.model)
 
         # use_rec_train= not self.config.mosaic
-        
+
 
         # Trainloader
         dataloader = get_train_loader(
@@ -304,7 +303,42 @@ class Solver(BaseTrainer):
                 self.config.final_epoch = final_epoch
 
                 if not forceclose_check.check_close():
-                    if self.config.arch != "mobilenetssd":
+                    if self.config.arch == "mobilenetssd":
+                        val_loss, valmap = evaluate_mobilenet(
+                            self.config,
+                            model,
+                            testloader_noaug,
+                            epoch,
+                            None,
+                            self.loss_fun.encoder,
+                            0.5,
+                            self.loss_fun.criterion,
+                            dboxes_default=self.net.dboxes(order="ltrb"),
+                        )
+
+                        (
+                            trainloss_log_f,
+                            trainmap,
+                        ) = evaluate_mobilenet(
+                            self.config,
+                            model,
+                            trainloader_noaug,
+                            epoch,
+                            None,
+                            self.loss_fun.encoder,
+                            0.5,
+                            self.loss_fun.criterion,
+                            dboxes_default=self.net.dboxes(order="ltrb"),
+                        )
+                        end_time = time.time() - t0
+                        elapsed_time_r = str(datetime.timedelta(seconds=end_time))[:-7]
+                        # end_time_log = time.time() - t0_log
+                        train_loss_log = float(trainloss_log_f)
+                        train_map_log = float(trainmap)
+                        val_loss_log = float(val_loss)
+                        val_map_log = float(valmap)
+
+                    else:
                         # if not self.config.notest or final_epoch:  # Calculate mAP for val dataset
                         results, maps, times = self.test(
                             self.config.val_dataset,
@@ -341,41 +375,6 @@ class Solver(BaseTrainer):
                         train_map_log = float(results_train[2])
                         val_loss_log = float(results[4] + results[5] + results[6])
                         val_map_log = float(results[2])
-                    else:
-                        val_loss, valmap = evaluate_mobilenet(
-                            self.config,
-                            model,
-                            testloader_noaug,
-                            epoch,
-                            None,
-                            self.loss_fun.encoder,
-                            0.5,
-                            self.loss_fun.criterion,
-                            dboxes_default=self.net.dboxes(order="ltrb"),
-                        )
-
-                        (
-                            trainloss_log_f,
-                            trainmap,
-                        ) = evaluate_mobilenet(
-                            self.config,
-                            model,
-                            trainloader_noaug,
-                            epoch,
-                            None,
-                            self.loss_fun.encoder,
-                            0.5,
-                            self.loss_fun.criterion,
-                            dboxes_default=self.net.dboxes(order="ltrb"),
-                        )
-                        end_time = time.time() - t0
-                        elapsed_time_r = str(datetime.timedelta(seconds=end_time))[:-7]
-                        # end_time_log = time.time() - t0_log
-                        train_loss_log = float(trainloss_log_f)
-                        train_map_log = float(trainmap)
-                        val_loss_log = float(val_loss)
-                        val_map_log = float(valmap)
-
                     # move logger into save_train_log
                     self.logger.info(
                         "Epoch: {} - Elapsed: {}, TrainLoss: {:0.4f}, TrainMap: {:.4f}, ValLoss: {:.4f}, ValMap: {:0.4f}".format(
@@ -403,9 +402,9 @@ class Solver(BaseTrainer):
                 if self.visualize:
                     self.visualize.update(epoch, results, self.progress_cls.mloss)
 
-                best_val_map = max(val_map_log, best_val_map)
                 best_train_map = max(train_map_log, best_train_map)
 
+                best_val_map = max(val_map_log, best_val_map)
                 # Save model
                 ckpt = {
                     "epoch": epoch,
@@ -624,7 +623,7 @@ class Solver(BaseTrainer):
                     self.config.yaml_out_path = os.path.join(
                         self.config.out_dir,
                         "result",
-                        self.config.name + "test_out.yaml",
+                        f"{self.config.name}test_out.yaml",
                     )
                     self.logger.info("save out yaml to path")
                     self.logger.info(self.config.yaml_out_path)
@@ -734,7 +733,7 @@ class Solver(BaseTrainer):
 
                 if self.config.arch != "yolov8":
                     inf_out, train_out = model(img, augment=augment)
-                elif self.config.arch == "yolov8":
+                else:
                     inf_out = model(img)
 
                 t0 += time_synchronized() - t
@@ -772,7 +771,7 @@ class Solver(BaseTrainer):
                         inf_out, conf_thres=conf_thres, iou_thres=iou_thres, merge=False
                     )
 
-                elif self.config.arch == "yolov8":
+                else:
                     output = yolov8ops.non_max_suppression(
                         inf_out,
                         conf_thres,
@@ -877,7 +876,7 @@ class Solver(BaseTrainer):
             imgsz,
             batch_size,
         )  # tuple
-        if not self.config.mode == "train":
+        if self.config.mode != "train":
             print(
                 "Speed: %.1f/%.1f/%.1f ms inference/NMS/total per %gx%g image at batch-size %g"
                 % t

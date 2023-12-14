@@ -377,25 +377,20 @@ class DefaultBoxes(object):
         self.dboxes_ltrb = box_convert(self.dboxes, in_fmt="cxcywh", out_fmt="xyxy")
 
     def __call__(self, order="ltrb"):
-        if order == "ltrb":
-            return self.dboxes_ltrb
-        else:  # order == "xywh"
-            return self.dboxes
+        return self.dboxes_ltrb if order == "ltrb" else self.dboxes
 
 
 def generate_dboxes(model="ssd"):
+    figsize = 300
     if model == "ssd":
-        figsize = 300
         feat_size = [38, 19, 10, 5, 3, 1]
         steps = [8, 16, 32, 64, 100, 300]
         scales = [21, 45, 99, 153, 207, 261, 315]
         aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
-        dboxes = DefaultBoxes(figsize, feat_size, steps, scales, aspect_ratios)
     else:  # "ssdlite"
-        figsize = 300
         feat_size = [19, 10, 5, 3, 2, 1]
         steps = [16, 32, 64, 100, 150, 300]
         scales = [60, 105, 150, 195, 240, 285, 330]
         aspect_ratios = [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
-        dboxes = DefaultBoxes(figsize, feat_size, steps, scales, aspect_ratios)
-    return dboxes
+    return DefaultBoxes(figsize, feat_size, steps, scales, aspect_ratios)
+

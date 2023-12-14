@@ -182,16 +182,14 @@ def check_imshow():
 
 
 def check_file(file):
-    # Search for file if not found
     if Path(file).is_file() or file == "":
         return file
-    else:
-        files = glob.glob("./**/" + file, recursive=True)  # find file
-        assert len(files), f"File Not Found: {file}"  # assert file was found
-        assert (
-            len(files) == 1
-        ), f"Multiple files match '{file}', specify exact path: {files}"  # assert unique
-        return files[0]  # return file
+    files = glob.glob("./**/" + file, recursive=True)  # find file
+    assert len(files), f"File Not Found: {file}"  # assert file was found
+    assert (
+        len(files) == 1
+    ), f"Multiple files match '{file}', specify exact path: {files}"  # assert unique
+    return files[0]  # return file
 
 
 def check_dataset(dict):
@@ -206,19 +204,18 @@ def check_dataset(dict):
                 "\nWARNING: Dataset not found, nonexistent paths: %s"
                 % [str(x) for x in val if not x.exists()]
             )
-            if s and len(s):  # download script
-                print("Downloading %s ..." % s)
-                if s.startswith("http") and s.endswith(".zip"):  # URL
-                    f = Path(s).name  # filename
-                    torch.hub.download_url_to_file(s, f)
-                    r = os.system("unzip -q %s -d ../ && rm %s" % (f, f))  # unzip
-                else:  # bash script
-                    r = os.system(s)
-                print(
-                    "Dataset autodownload %s\n" % ("success" if r == 0 else "failure")
-                )  # analyze return value
-            else:
+            if not s or not len(s):
                 raise Exception("Dataset not found.")
+            print(f"Downloading {s} ...")
+            if s.startswith("http") and s.endswith(".zip"):  # URL
+                f = Path(s).name  # filename
+                torch.hub.download_url_to_file(s, f)
+                r = os.system(f"unzip -q {f} -d ../ && rm {f}")
+            else:  # bash script
+                r = os.system(s)
+            print(
+                "Dataset autodownload %s\n" % ("success" if r == 0 else "failure")
+            )  # analyze return value
 
 
 def make_divisible(x, divisor):
@@ -289,18 +286,11 @@ def labels_to_image_weights(labels, nc=80, class_weights=np.ones(80)):
     class_counts = np.array(
         [np.bincount(x[:, 0].astype(np.int), minlength=nc) for x in labels]
     )
-    image_weights = (class_weights.reshape(1, nc) * class_counts).sum(1)
-    # index = random.choices(range(n), weights=image_weights, k=1)  # weight image sample
-    return image_weights
+    return (class_weights.reshape(1, nc) * class_counts).sum(1)
 
 
 def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
-    # https://tech.amikelive.com/node-718/what-object-categories-labels-are-in-coco-dataset/
-    # a = np.loadtxt('data/coco.names', dtype='str', delimiter='\n')
-    # b = np.loadtxt('data/coco_paper.names', dtype='str', delimiter='\n')
-    # x1 = [list(a[i] == b).index(True) + 1 for i in range(80)]  # darknet to coco
-    # x2 = [list(b[i] == a).index(True) if any(b[i] == a) else None for i in range(91)]  # coco to darknet
-    x = [
+    return [
         1,
         2,
         3,
@@ -382,7 +372,6 @@ def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
         89,
         90,
     ]
-    return x
 
 
 def xyxy2xywh(x):
@@ -515,33 +504,29 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=
 
     iou = inter / union
 
-    if GIoU or DIoU or CIoU:
-        cw = torch.max(b1_x2, b2_x2) - torch.min(
-            b1_x1, b2_x1
-        )  # convex (smallest enclosing box) width
-        ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
-        if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
-            c2 = cw**2 + ch**2 + eps  # convex diagonal squared
-            rho2 = (
-                (b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2
-                + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2
-            ) / 4  # center distance squared
-            if DIoU:
-                return iou - rho2 / c2  # DIoU
-            elif (
-                CIoU
-            ):  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
-                v = (4 / math.pi**2) * torch.pow(
-                    torch.atan(w2 / (h2 + eps)) - torch.atan(w1 / (h1 + eps)), 2
-                )
-                with torch.no_grad():
-                    alpha = v / (v - iou + (1 + eps))
-                return iou - (rho2 / c2 + v * alpha)  # CIoU
-        else:  # GIoU https://arxiv.org/pdf/1902.09630.pdf
-            c_area = cw * ch + eps  # convex area
-            return iou - (c_area - union) / c_area  # GIoU
-    else:
+    if not GIoU and not DIoU and not CIoU:
         return iou  # IoU
+    cw = torch.max(b1_x2, b2_x2) - torch.min(
+        b1_x1, b2_x1
+    )  # convex (smallest enclosing box) width
+    ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
+    if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
+        c2 = cw**2 + ch**2 + eps  # convex diagonal squared
+        rho2 = (
+            (b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2
+            + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2
+        ) / 4  # center distance squared
+        if DIoU:
+            return iou - rho2 / c2  # DIoU
+        v = (4 / math.pi**2) * torch.pow(
+            torch.atan(w2 / (h2 + eps)) - torch.atan(w1 / (h1 + eps)), 2
+        )
+        with torch.no_grad():
+            alpha = v / (v - iou + (1 + eps))
+        return iou - (rho2 / c2 + v * alpha)  # CIoU
+    else:  # GIoU https://arxiv.org/pdf/1902.09630.pdf
+        c_area = cw * ch + eps  # convex area
+        return iou - (c_area - union) / c_area  # GIoU
 
 
 def bbox_alpha_iou(
@@ -573,38 +558,36 @@ def bbox_alpha_iou(
     # change iou into pow(iou+eps)
     # iou = inter / union
     iou = torch.pow(inter / union + eps, alpha)
-    # beta = 2 * alpha
-    if GIoU or DIoU or CIoU:
-        cw = torch.max(b1_x2, b2_x2) - torch.min(
-            b1_x1, b2_x1
-        )  # convex (smallest enclosing box) width
-        ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
-        if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
-            c2 = (cw**2 + ch**2) ** alpha + eps  # convex diagonal
-            rho_x = torch.abs(b2_x1 + b2_x2 - b1_x1 - b1_x2)
-            rho_y = torch.abs(b2_y1 + b2_y2 - b1_y1 - b1_y2)
-            rho2 = ((rho_x**2 + rho_y**2) / 4) ** alpha  # center distance
-            if DIoU:
-                return iou - rho2 / c2  # DIoU
-            elif (
-                CIoU
-            ):  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
-                v = (4 / math.pi**2) * torch.pow(
-                    torch.atan(w2 / h2) - torch.atan(w1 / h1), 2
-                )
-                with torch.no_grad():
-                    alpha_ciou = v / ((1 + eps) - inter / union + v)
-                # return iou - (rho2 / c2 + v * alpha_ciou)  # CIoU
-                return iou - (
-                    rho2 / c2 + torch.pow(v * alpha_ciou + eps, alpha)
-                )  # CIoU
-        else:  # GIoU https://arxiv.org/pdf/1902.09630.pdf
-            # c_area = cw * ch + eps  # convex area
-            # return iou - (c_area - union) / c_area  # GIoU
-            c_area = torch.max(cw * ch + eps, union)  # convex area
-            return iou - torch.pow((c_area - union) / c_area + eps, alpha)  # GIoU
-    else:
+    if not GIoU and not DIoU and not CIoU:
         return iou  # torch.log(iou+eps) or iou
+    cw = torch.max(b1_x2, b2_x2) - torch.min(
+        b1_x1, b2_x1
+    )  # convex (smallest enclosing box) width
+    ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
+    if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
+        c2 = (cw**2 + ch**2) ** alpha + eps  # convex diagonal
+        rho_x = torch.abs(b2_x1 + b2_x2 - b1_x1 - b1_x2)
+        rho_y = torch.abs(b2_y1 + b2_y2 - b1_y1 - b1_y2)
+        rho2 = ((rho_x**2 + rho_y**2) / 4) ** alpha  # center distance
+        if DIoU:
+            return iou - rho2 / c2  # DIoU
+        elif (
+            CIoU
+        ):  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
+            v = (4 / math.pi**2) * torch.pow(
+                torch.atan(w2 / h2) - torch.atan(w1 / h1), 2
+            )
+            with torch.no_grad():
+                alpha_ciou = v / ((1 + eps) - inter / union + v)
+            # return iou - (rho2 / c2 + v * alpha_ciou)  # CIoU
+            return iou - (
+                rho2 / c2 + torch.pow(v * alpha_ciou + eps, alpha)
+            )  # CIoU
+    else:  # GIoU https://arxiv.org/pdf/1902.09630.pdf
+        # c_area = cw * ch + eps  # convex area
+        # return iou - (c_area - union) / c_area  # GIoU
+        c_area = torch.max(cw * ch + eps, union)  # convex area
+        return iou - torch.pow((c_area - union) / c_area + eps, alpha)  # GIoU
 
 
 def box_iou(box1, box2):
@@ -924,7 +907,7 @@ def non_max_suppression_kpt(
     """
     if nc is None:
         nc = (
-            prediction.shape[2] - 5 if not kpt_label else prediction.shape[2] - 56
+            prediction.shape[2] - 56 if kpt_label else prediction.shape[2] - 5
         )  # number of classes
     xc = prediction[..., 4] > conf_thres  # candidates
 
@@ -967,17 +950,16 @@ def non_max_suppression_kpt(
         if multi_label:
             i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
             x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
-        else:  # best class only
-            if not kpt_label:
-                conf, j = x[:, 5:].max(1, keepdim=True)
-                x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
-            else:
-                kpts = x[:, 6:]
-                conf, j = x[:, 5:6].max(1, keepdim=True)
-                x = torch.cat((box, conf, j.float(), kpts), 1)[
-                    conf.view(-1) > conf_thres
-                ]
+        elif kpt_label:
+            kpts = x[:, 6:]
+            conf, j = x[:, 5:6].max(1, keepdim=True)
+            x = torch.cat((box, conf, j.float(), kpts), 1)[
+                conf.view(-1) > conf_thres
+            ]
 
+        else:
+            conf, j = x[:, 5:].max(1, keepdim=True)
+            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
         # Filter by class
         if classes is not None:
             x = x[(x[:, 5:6] == torch.tensor(classes, device=x.device)).any(1)]
@@ -1033,7 +1015,7 @@ def strip_optimizer(
     torch.save(x, s or f)
     mb = os.path.getsize(s or f) / 1e6  # filesize
     print(
-        f"Optimizer stripped from {f},{(' saved as %s,' % s) if s else ''} {mb:.1f}MB"
+        f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB"
     )
 
 
@@ -1101,7 +1083,7 @@ def apply_classifier(x, model, img, im0):
             # Classes
             pred_cls1 = d[:, 5].long()
             ims = []
-            for j, a in enumerate(d):  # per item
+            for a in d:
                 cutout = im0[i][int(a[1]) : int(a[3]), int(a[0]) : int(a[2])]
                 im = cv2.resize(cutout, (224, 224))  # BGR
                 # cv2.imwrite('test%i.jpg' % j, cutout)
@@ -1124,9 +1106,8 @@ def increment_path(path, exist_ok=True, sep=""):
     path = Path(path)  # os-agnostic
     if (path.exists() and exist_ok) or (not path.exists()):
         return str(path)
-    else:
-        dirs = glob.glob(f"{path}{sep}*")  # similar paths
-        matches = [re.search(rf"%s{sep}(\d+)" % path.stem, d) for d in dirs]
-        i = [int(m.groups()[0]) for m in matches if m]  # indices
-        n = max(i) + 1 if i else 2  # increment number
-        return f"{path}{sep}{n}"  # update path
+    dirs = glob.glob(f"{path}{sep}*")  # similar paths
+    matches = [re.search(rf"%s{sep}(\d+)" % path.stem, d) for d in dirs]
+    i = [int(m.groups()[0]) for m in matches if m]  # indices
+    n = max(i) + 1 if i else 2  # increment number
+    return f"{path}{sep}{n}"  # update path

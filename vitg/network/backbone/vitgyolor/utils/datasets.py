@@ -61,11 +61,9 @@ def exif_size(img):
     s = img.size  # (width, height)
     try:
         rotation = dict(img._getexif().items())[orientation]
-        if rotation == 6:  # rotation 270
+        if rotation in [6, 8]:
             s = (s[1], s[0])
-        elif rotation == 8:  # rotation 90
-            s = (s[1], s[0])
-    except:
+    except Exception:
         pass
 
     return s
@@ -184,7 +182,7 @@ class InfiniteDataLoader(torch.utils.data.dataloader.DataLoader):
         return len(self.batch_sampler.sampler)
 
     def __iter__(self):
-        for i in range(len(self)):
+        for _ in range(len(self)):
             yield next(self.iterator)
 
 
@@ -214,7 +212,7 @@ class LoadImages:  # for inference
         elif os.path.isfile(p):
             files = [p]  # files
         else:
-            raise Exception("ERROR: %s does not exist" % p)
+            raise Exception(f"ERROR: {p} does not exist")
 
         images = [x for x in files if x.split(".")[-1].lower() in img_formats]
         videos = [x for x in files if x.split(".")[-1].lower() in vid_formats]
@@ -251,12 +249,11 @@ class LoadImages:  # for inference
             if not ret_val:
                 self.count += 1
                 self.cap.release()
-                if self.count == self.nf:  # last video
+                if self.count == self.nf:
                     raise StopIteration
-                else:
-                    path = self.files[self.count]
-                    self.new_video(path)
-                    ret_val, img0 = self.cap.read()
+                path = self.files[self.count]
+                self.new_video(path)
+                ret_val, img0 = self.cap.read()
 
             self.frame += 1
             print(
@@ -269,7 +266,7 @@ class LoadImages:  # for inference
             # Read image
             self.count += 1
             img0 = cv2.imread(path)  # BGR
-            assert img0 is not None, "Image Not Found " + path
+            assert img0 is not None, f"Image Not Found {path}"
             print("image %g/%g %s: " % (self.count, self.nf, path), end="")
 
         # Padded resize
@@ -330,7 +327,7 @@ class LoadWebcam:  # for inference
                         break
 
         # Print
-        assert ret_val, "Camera Error %s" % self.pipe
+        assert ret_val, f"Camera Error {self.pipe}"
         img_path = "webcam.jpg"
         print("webcam %g: " % self.count, end="")
 
@@ -365,7 +362,7 @@ class LoadStreams:  # multiple IP or RTSP cameras
             # Start the thread to read frames from the video stream
             print("%g/%g: %s... " % (i + 1, n, s), end="")
             cap = cv2.VideoCapture(eval(s) if s.isnumeric() else s)
-            assert cap.isOpened(), "Failed to open %s" % s
+            assert cap.isOpened(), f"Failed to open {s}"
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fps = cap.get(cv2.CAP_PROP_FPS) % 100
@@ -482,7 +479,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                             for x in t
                         ]  # local to global path
                 else:
-                    raise Exception("%s does not exist" % p)
+                    raise Exception(f"{p} does not exist")
             self.img_files = sorted(
                 [
                     x.replace("/", os.sep)
@@ -518,7 +515,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # Check cache
         self.label_files = img2label_paths(self.img_files)  # labels
-        cache_path = str(Path(self.label_files[0]).parent) + ".cache3"  # cached labels
+        cache_path = f"{str(Path(self.label_files[0]).parent)}.cache3"
         # if os.path.isfile(cache_path):
         #    cache = torch.load(cache_path)  # load
         #    if cache['hash'] != get_hash(self.label_files + self.img_files):  # dataset changed
@@ -582,10 +579,12 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         for i, file in pbar:
             l = self.labels[i]  # label
             if l is not None and l.shape[0]:
-                assert l.shape[1] == 5, "> 5 label columns: %s" % file
-                assert (l >= 0).all(), "negative labels: %s" % file
-                assert (l[:, 1:] <= 1).all(), (
-                    "non-normalized or out of bounds coordinate labels: %s" % file
+                assert l.shape[1] == 5, f"> 5 label columns: {file}"
+                assert (l >= 0).all(), f"negative labels: {file}"
+                assert (
+                    l[:, 1:] <= 1
+                ).all(), (
+                    f"non-normalized or out of bounds coordinate labels: {file}"
                 )
                 if np.unique(l, axis=0).shape[0] < l.shape[0]:  # duplicate rows
                     nd += 1  # print('WARNING: duplicate rows in %s' % self.label_files[i])  # duplicate rows
@@ -645,12 +644,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     % (cache_path, nf, nm, ne, nd, n)
                 )
         if nf == 0:
-            s = "WARNING: No labels found in %s. See %s" % (
-                os.path.dirname(file) + os.sep,
-                help_url,
-            )
+            s = f"WARNING: No labels found in {os.path.dirname(file) + os.sep}. See {help_url}"
             print(s)
-            assert not augment, "%s. Can not train without labels." % s
+            assert not augment, f"{s}. Can not train without labels."
 
         # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
         self.imgs = [None] * n
@@ -694,9 +690,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     l = np.zeros((0, 5), dtype=np.float32)
                 x[img] = [l, shape]
             except Exception as e:
-                print(
-                    "WARNING: Ignoring corrupted image and/or label %s: %s" % (img, e)
-                )
+                print(f"WARNING: Ignoring corrupted image and/or label {img}: {e}")
 
         x["hash"] = get_hash(self.label_files + self.img_files)
         torch.save(x, path)  # save for next time
@@ -845,10 +839,7 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
-            sa, sb = (
-                os.sep + "images" + os.sep,
-                os.sep + "labels" + os.sep,
-            )  # /images/, /labels/ substrings
+            sa, sb = f"{os.sep}images{os.sep}", f"{os.sep}labels{os.sep}"
             return [
                 x.replace(sa, sb, 1).replace(x.split(".")[-1], "txt") for x in img_paths
             ]
@@ -868,7 +859,7 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
                             for x in t
                         ]  # local to global path
                 else:
-                    raise Exception("%s does not exist" % p)
+                    raise Exception(f"{p} does not exist")
             self.img_files = sorted(
                 [
                     x.replace("/", os.sep)
@@ -884,7 +875,7 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
 
         # Check cache
         self.label_files = img2label_paths(self.img_files)  # labels
-        cache_path = str(Path(self.label_files[0]).parent) + ".cache3"  # cached labels
+        cache_path = f"{str(Path(self.label_files[0]).parent)}.cache3"
         if os.path.isfile(cache_path):
             cache = torch.load(cache_path)  # load
             if cache["hash"] != get_hash(
@@ -950,10 +941,12 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
         for i, file in pbar:
             l = self.labels[i]  # label
             if l is not None and l.shape[0]:
-                assert l.shape[1] == 5, "> 5 label columns: %s" % file
-                assert (l >= 0).all(), "negative labels: %s" % file
-                assert (l[:, 1:] <= 1).all(), (
-                    "non-normalized or out of bounds coordinate labels: %s" % file
+                assert l.shape[1] == 5, f"> 5 label columns: {file}"
+                assert (l >= 0).all(), f"negative labels: {file}"
+                assert (
+                    l[:, 1:] <= 1
+                ).all(), (
+                    f"non-normalized or out of bounds coordinate labels: {file}"
                 )
                 if np.unique(l, axis=0).shape[0] < l.shape[0]:  # duplicate rows
                     nd += 1  # print('WARNING: duplicate rows in %s' % self.label_files[i])  # duplicate rows
@@ -1013,12 +1006,9 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
                     % (cache_path, nf, nm, ne, nd, n)
                 )
         if nf == 0:
-            s = "WARNING: No labels found in %s. See %s" % (
-                os.path.dirname(file) + os.sep,
-                help_url,
-            )
+            s = f"WARNING: No labels found in {os.path.dirname(file) + os.sep}. See {help_url}"
             print(s)
-            assert not augment, "%s. Can not train without labels." % s
+            assert not augment, f"{s}. Can not train without labels."
 
         # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
         self.imgs = [None] * n
@@ -1062,9 +1052,7 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
                     l = np.zeros((0, 5), dtype=np.float32)
                 x[img] = [l, shape]
             except Exception as e:
-                print(
-                    "WARNING: Ignoring corrupted image and/or label %s: %s" % (img, e)
-                )
+                print(f"WARNING: Ignoring corrupted image and/or label {img}: {e}")
 
         x["hash"] = get_hash(self.label_files + self.img_files)
         torch.save(x, path)  # save for next time
@@ -1188,22 +1176,21 @@ class LoadImagesAndLabels9(Dataset):  # for training/testing
 def load_image(self, index):
     # loads 1 image from dataset, returns img, original hw, resized hw
     img = self.imgs[index]
-    if img is None:  # not cached
-        path = self.img_files[index]
-        img = cv2.imread(path)  # BGR
-        assert img is not None, "Image Not Found " + path
-        h0, w0 = img.shape[:2]  # orig hw
-        r = self.img_size / max(h0, w0)  # resize image to img_size
-        if r != 1:  # always resize down, only resize up if training with augmentation
-            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
-            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-        return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
-    else:
+    if img is not None:
         return (
             self.imgs[index],
             self.img_hw0[index],
             self.img_hw[index],
         )  # img, hw_original, hw_resized
+    path = self.img_files[index]
+    img = cv2.imread(path)  # BGR
+    assert img is not None, f"Image Not Found {path}"
+    h0, w0 = img.shape[:2]  # orig hw
+    r = self.img_size / max(h0, w0)  # resize image to img_size
+    if r != 1:  # always resize down, only resize up if training with augmentation
+        interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+        img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+    return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
 
 
 def augment_hsv(img, hgain=0.5, sgain=0.5, vgain=0.5):
@@ -1360,9 +1347,7 @@ def load_mosaic9(self, index):
         hp, wp = h, w  # height, width previous
 
     # Offset
-    yc, xc = [
-        int(random.uniform(0, s)) for x in self.mosaic_border
-    ]  # mosaic center x, y
+    yc, xc = [int(random.uniform(0, s)) for _ in self.mosaic_border]
     img9 = img9[yc : yc + 2 * s, xc : xc + 2 * s]
 
     # Concat/clip labels
@@ -1513,15 +1498,7 @@ def random_perspective(
                 img, M[:2], dsize=(width, height), borderValue=(114, 114, 114)
             )
 
-    # Visualize
-    # import matplotlib.pyplot as plt
-    # ax = plt.subplots(1, 2, figsize=(12, 6))[1].ravel()
-    # ax[0].imshow(img[:, :, ::-1])  # base
-    # ax[1].imshow(img2[:, :, ::-1])  # warped
-
-    # Transform label coordinates
-    n = len(targets)
-    if n:
+    if n := len(targets):
         # warp points
         xy = np.ones((n * 4, 3))
         xy[:, :2] = targets[:, [1, 2, 3, 4, 1, 4, 3, 2]].reshape(
@@ -1632,7 +1609,7 @@ def create_folder(path="./new"):
 
 def flatten_recursive(path="../coco128"):
     # Flatten a recursive directory by bringing all files to top level
-    new_path = Path(path + "_flat")
+    new_path = Path(f"{path}_flat")
     create_folder(new_path)
-    for file in tqdm(glob.glob(str(Path(path)) + "/**/*.*", recursive=True)):
+    for file in tqdm(glob.glob(f"{str(Path(path))}/**/*.*", recursive=True)):
         shutil.copyfile(file, new_path / Path(file).name)

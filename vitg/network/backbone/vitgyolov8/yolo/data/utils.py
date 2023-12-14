@@ -152,8 +152,7 @@ def verify_image_label(args):
                         (classes.reshape(-1, 1), segments2boxes(segments)), 1
                     )  # (cls, xywh)
                 lb = np.array(lb, dtype=np.float32)
-            nl = len(lb)
-            if nl:
+            if nl := len(lb):
                 if keypoint:
                     assert lb.shape[1] == 56, "labels require 56 columns each"
                     assert (

@@ -614,11 +614,7 @@ class RepConv(nn.Module):
         if hasattr(self, "rbr_reparam"):
             return self.act(self.rbr_reparam(inputs))
 
-        if self.rbr_identity is None:
-            id_out = 0
-        else:
-            id_out = self.rbr_identity(inputs)
-
+        id_out = 0 if self.rbr_identity is None else self.rbr_identity(inputs)
         return self.act(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
 
     def get_equivalent_kernel_bias(self):
@@ -631,10 +627,7 @@ class RepConv(nn.Module):
         )
 
     def _pad_1x1_to_3x3_tensor(self, kernel1x1):
-        if kernel1x1 is None:
-            return 0
-        else:
-            return nn.functional.pad(kernel1x1, [1, 1, 1, 1])
+        return 0 if kernel1x1 is None else nn.functional.pad(kernel1x1, [1, 1, 1, 1])
 
     def _fuse_bn_tensor(self, branch):
         if branch is None:
@@ -700,7 +693,7 @@ class RepConv(nn.Module):
     def fuse_repvgg_block(self):
         if self.deploy:
             return
-        print(f"RepConv.fuse_repvgg_block")
+        print("RepConv.fuse_repvgg_block")
 
         self.rbr_dense = self.fuse_conv_bn(self.rbr_dense[0], self.rbr_dense[1])
 
@@ -709,8 +702,8 @@ class RepConv(nn.Module):
         weight_1x1_expanded = torch.nn.functional.pad(self.rbr_1x1.weight, [1, 1, 1, 1])
 
         # Fuse self.rbr_identity
-        if isinstance(self.rbr_identity, nn.BatchNorm2d) or isinstance(
-            self.rbr_identity, nn.modules.batchnorm.SyncBatchNorm
+        if isinstance(
+            self.rbr_identity, (nn.BatchNorm2d, nn.modules.batchnorm.SyncBatchNorm)
         ):
             # print(f"fuse: rbr_identity == BatchNorm2d or SyncBatchNorm")
             identity_conv_1x1 = nn.Conv2d(
@@ -1306,10 +1299,7 @@ class ConvBN(nn.Module):
         nonlinear=None,
     ):
         super().__init__()
-        if nonlinear is None:
-            self.nonlinear = nn.Identity()
-        else:
-            self.nonlinear = nonlinear
+        self.nonlinear = nn.Identity() if nonlinear is None else nonlinear
         if deploy:
             self.conv = nn.Conv2d(
                 in_channels=in_channels,
@@ -1379,11 +1369,7 @@ class OREPA_3x3_RepConv(nn.Module):
         super(OREPA_3x3_RepConv, self).__init__()
         self.deploy = deploy
 
-        if nonlinear is None:
-            self.nonlinear = nn.Identity()
-        else:
-            self.nonlinear = nonlinear
-
+        self.nonlinear = nn.Identity() if nonlinear is None else nonlinear
         self.kernel_size = kernel_size
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -1404,27 +1390,26 @@ class OREPA_3x3_RepConv(nn.Module):
         nn.init.kaiming_uniform_(self.weight_rbr_origin, a=math.sqrt(1.0))
         self.branch_counter += 1
 
-        if groups < out_channels:
-            self.weight_rbr_avg_conv = nn.Parameter(
-                torch.Tensor(out_channels, int(in_channels / self.groups), 1, 1)
-            )
-            self.weight_rbr_pfir_conv = nn.Parameter(
-                torch.Tensor(out_channels, int(in_channels / self.groups), 1, 1)
-            )
-            nn.init.kaiming_uniform_(self.weight_rbr_avg_conv, a=1.0)
-            nn.init.kaiming_uniform_(self.weight_rbr_pfir_conv, a=1.0)
-            self.weight_rbr_avg_conv.data
-            self.weight_rbr_pfir_conv.data
-            self.register_buffer(
-                "weight_rbr_avg_avg",
-                torch.ones(kernel_size, kernel_size).mul(
-                    1.0 / kernel_size / kernel_size
-                ),
-            )
-            self.branch_counter += 1
-
-        else:
+        if groups >= out_channels:
             raise NotImplementedError
+        self.weight_rbr_avg_conv = nn.Parameter(
+            torch.Tensor(out_channels, int(in_channels / self.groups), 1, 1)
+        )
+        self.weight_rbr_pfir_conv = nn.Parameter(
+            torch.Tensor(out_channels, int(in_channels / self.groups), 1, 1)
+        )
+        nn.init.kaiming_uniform_(self.weight_rbr_avg_conv, a=1.0)
+        nn.init.kaiming_uniform_(self.weight_rbr_pfir_conv, a=1.0)
+        self.weight_rbr_avg_conv.data
+        self.weight_rbr_pfir_conv.data
+        self.register_buffer(
+            "weight_rbr_avg_avg",
+            torch.ones(kernel_size, kernel_size).mul(
+                1.0 / kernel_size / kernel_size
+            ),
+        )
+        self.branch_counter += 1
+
         self.branch_counter += 1
 
         if internal_channels_1x1_3x3 is None:
@@ -1565,15 +1550,13 @@ class OREPA_3x3_RepConv(nn.Module):
             "oihw,o->oihw", weight_rbr_gconv, self.vector[4, :]
         )
 
-        weight = (
+        return (
             weight_rbr_origin
             + weight_rbr_avg
             + weight_rbr_1x1_kxk
             + weight_rbr_pfir
             + weight_rbr_gconv
         )
-
-        return weight
 
     def dwsc2full(self, weight_dw, weight_pw, groups):
         t, ig, h, w = weight_dw.size()
@@ -1631,11 +1614,7 @@ class RepConv_OREPA(nn.Module):
 
         padding_11 = padding - k // 2
 
-        if nonlinear is None:
-            self.nonlinearity = nn.Identity()
-        else:
-            self.nonlinearity = nonlinear
-
+        self.nonlinearity = nn.Identity() if nonlinear is None else nonlinear
         if use_se:
             self.se = SEBlock(
                 self.out_channels, internal_neurons=self.out_channels // 16
@@ -1686,11 +1665,7 @@ class RepConv_OREPA(nn.Module):
         if hasattr(self, "rbr_reparam"):
             return self.nonlinearity(self.se(self.rbr_reparam(inputs)))
 
-        if self.rbr_identity is None:
-            id_out = 0
-        else:
-            id_out = self.rbr_identity(inputs)
-
+        id_out = 0 if self.rbr_identity is None else self.rbr_identity(inputs)
         out1 = self.rbr_dense(inputs)
         out2 = self.rbr_1x1(inputs)
         out3 = id_out
@@ -1791,7 +1766,7 @@ class RepConv_OREPA(nn.Module):
     def switch_to_deploy(self):
         if hasattr(self, "rbr_reparam"):
             return
-        print(f"RepConv_OREPA.switch_to_deploy")
+        print("RepConv_OREPA.switch_to_deploy")
         kernel, bias = self.get_equivalent_kernel_bias()
         self.rbr_reparam = nn.Conv2d(
             in_channels=self.rbr_dense.in_channels,
@@ -1901,16 +1876,13 @@ class WindowAttention(nn.Module):
                 1
             ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
-            attn = self.softmax(attn)
-        else:
-            attn = self.softmax(attn)
-
+        attn = self.softmax(attn)
         attn = self.attn_drop(attn)
 
         # print(attn.dtype, v.dtype)
         try:
             x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
-        except:
+        except Exception:
             # print(attn.dtype, v.dtype)
             x = (attn.half() @ v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
@@ -1948,10 +1920,11 @@ def window_partition(x, window_size):
     B, H, W, C = x.shape
     assert H % window_size == 0, "feature map h and w can not divide by window size"
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
-    windows = (
-        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    return (
+        x.permute(0, 1, 3, 2, 4, 5)
+        .contiguous()
+        .view(-1, window_size, window_size, C)
     )
-    return windows
 
 
 def window_reverse(windows, window_size, H, W):
@@ -2038,8 +2011,8 @@ class SwinTransformerLayer(nn.Module):
         )  # nW, window_size, window_size, 1
         mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
-            attn_mask == 0, float(0.0)
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, -100.0).masked_fill(
+            attn_mask == 0, 0.0
         )
 
         return attn_mask
@@ -2217,16 +2190,9 @@ class STCSPC(nn.Module):
 
 
 class WindowAttention_v2(nn.Module):
-    def __init__(
-        self,
-        dim,
-        window_size,
-        num_heads,
-        qkv_bias=True,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        pretrained_window_size=[0, 0],
-    ):
+    def __init__(self, dim, window_size, num_heads, qkv_bias=True, attn_drop=0.0, proj_drop=0.0, pretrained_window_size=None):
+        if pretrained_window_size is None:
+            pretrained_window_size = [0, 0]
         super().__init__()
         self.dim = dim
         self.window_size = window_size  # Wh, Ww
@@ -2349,15 +2315,12 @@ class WindowAttention_v2(nn.Module):
                 1
             ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
-            attn = self.softmax(attn)
-        else:
-            attn = self.softmax(attn)
-
+        attn = self.softmax(attn)
         attn = self.attn_drop(attn)
 
         try:
             x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
-        except:
+        except Exception:
             x = (attn.half() @ v).transpose(1, 2).reshape(B_, N, C)
 
         x = self.proj(x)
@@ -2413,10 +2376,11 @@ class Mlp_v2(nn.Module):
 def window_partition_v2(x, window_size):
     B, H, W, C = x.shape
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
-    windows = (
-        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    return (
+        x.permute(0, 1, 3, 2, 4, 5)
+        .contiguous()
+        .view(-1, window_size, window_size, C)
     )
-    return windows
 
 
 def window_reverse_v2(windows, window_size, H, W):
@@ -2504,8 +2468,8 @@ class SwinTransformerLayer_v2(nn.Module):
         )  # nW, window_size, window_size, 1
         mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
-            attn_mask == 0, float(0.0)
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, -100.0).masked_fill(
+            attn_mask == 0, 0.0
         )
 
         return attn_mask

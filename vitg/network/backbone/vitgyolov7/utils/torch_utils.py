@@ -101,61 +101,6 @@ def time_synchronized():
     return time.time()
 
 
-# def profile(x, ops, n=100, device=None):
-#     # profile a pytorch module or list of modules. Example usage:
-#     #     x = torch.randn(16, 3, 640, 640)  # input
-#     #     m1 = lambda x: x * torch.sigmoid(x)
-#     #     m2 = nn.SiLU()
-#     #     profile(x, [m1, m2], n=100)  # profile speed over 100 iterations
-
-#     device = device or torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#     x = x.to(device)
-#     x.requires_grad = True
-#     print(
-#         torch.__version__,
-#         device.type,
-#         torch.cuda.get_device_properties(0) if device.type == "cuda" else "",
-#     )
-#     print(
-#         f"\n{'Params':>12s}{'GFLOPS':>12s}{'forward (ms)':>16s}{'backward (ms)':>16s}{'input':>24s}{'output':>24s}"
-#     )
-#     for m in ops if isinstance(ops, list) else [ops]:
-#         m = m.to(device) if hasattr(m, "to") else m  # device
-#         m = (
-#             m.half()
-#             if hasattr(m, "half")
-#             and isinstance(x, torch.Tensor)
-#             and x.dtype is torch.float16
-#             else m
-#         )  # type
-#         dtf, dtb, t = 0.0, 0.0, [0.0, 0.0, 0.0]  # dt forward, backward
-#         try:
-#             flops = thop.profile(m, inputs=(x,), verbose=False)[0] / 1e9 * 2  # GFLOPS
-#         except:
-#             flops = 0
-
-#         for _ in range(n):
-#             t[0] = time_synchronized()
-#             y = m(x)
-#             t[1] = time_synchronized()
-#             try:
-#                 _ = y.sum().backward()
-#                 t[2] = time_synchronized()
-#             except:  # no backward method
-#                 t[2] = float("nan")
-#             dtf += (t[1] - t[0]) * 1000 / n  # ms per op forward
-#             dtb += (t[2] - t[1]) * 1000 / n  # ms per op backward
-
-#         s_in = tuple(x.shape) if isinstance(x, torch.Tensor) else "list"
-#         s_out = tuple(y.shape) if isinstance(y, torch.Tensor) else "list"
-#         p = (
-#             sum(list(x.numel() for x in m.parameters()))
-#             if isinstance(m, nn.Module)
-#             else 0
-#         )  # parameters
-#         print(
-#             f"{p:12}{flops:12.4g}{dtf:16.4g}{dtb:16.4g}{str(s_in):>24s}{str(s_out):>24s}"
-#         )
 
 
 def is_parallel(model):
@@ -170,7 +115,9 @@ def intersect_dicts(da, db, exclude=()):
     return {
         k: v
         for k, v in da.items()
-        if k in db and not any(x in k for x in exclude) and v.shape == db[k].shape
+        if k in db
+        and all(x not in k for x in exclude)
+        and v.shape == db[k].shape
     }
 
 
@@ -273,7 +220,7 @@ def model_info(model, verbose=False, img_size=640):
                 )
             )
 
-    try:  # FLOPS
+    try:
         from thop import profile
 
         stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32
@@ -290,7 +237,7 @@ def model_info(model, verbose=False, img_size=640):
         fs = ", %.1f GFLOPS" % (
             flops * img_size[0] / stride * img_size[1] / stride
         )  # 640x640 GFLOPS
-    except (ImportError, Exception):
+    except Exception:
         fs = ""
 
     logger.info(
@@ -318,18 +265,16 @@ def load_classifier(name="resnet101", n=2):
 
 
 def scale_img(img, ratio=1.0, same_shape=False, gs=32):  # img(16,3,256,416)
-    # scales img(bs,3,y,x) by ratio constrained to gs-multiple
     if ratio == 1.0:
         return img
-    else:
-        h, w = img.shape[2:]
-        s = (int(h * ratio), int(w * ratio))  # new size
-        img = F.interpolate(img, size=s, mode="bilinear", align_corners=False)  # resize
-        if not same_shape:  # pad/crop img
-            h, w = [math.ceil(x * ratio / gs) * gs for x in (h, w)]
-        return F.pad(
-            img, [0, w - s[1], 0, h - s[0]], value=0.447
-        )  # value = imagenet mean
+    h, w = img.shape[2:]
+    s = (int(h * ratio), int(w * ratio))  # new size
+    img = F.interpolate(img, size=s, mode="bilinear", align_corners=False)  # resize
+    if not same_shape:  # pad/crop img
+        h, w = [math.ceil(x * ratio / gs) * gs for x in (h, w)]
+    return F.pad(
+        img, [0, w - s[1], 0, h - s[0]], value=0.447
+    )  # value = imagenet mean
 
 
 def copy_attr(a, b, include=(), exclude=()):

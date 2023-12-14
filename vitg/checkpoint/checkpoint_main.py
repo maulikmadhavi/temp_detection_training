@@ -77,29 +77,19 @@ class Checkpoint:
     ):
         start_epoch, best_train_map, best_val_map = 0, 0.0, 0.0
 
-        if weights is not "":
-            print(f"load with pretrain weight: {weights}")
-            ckpt = torch.load(weights, map_location=self.device)  # load checkpoint
-            state_dict = intersect_dictsyolov7(
-                ckpt["model"], model.state_dict(), exclude=exclude
-            )  # intersect
-            model.load_state_dict(state_dict, strict=False)
-            print(
-                "Transferred %g/%g items from %s"
-                % (len(state_dict), len(model.state_dict()), weights)
-            )  # report
-            if not resume_train:
-                # resume training need to load ckpt later
-                del ckpt
-            del state_dict
+        if weights != "":
+            ckpt = self.load_weights(
+                weights, model, exclude, resume_train
+            )
         else:
             print("train from scratch")
             # weight_initialization
             for name, m in model.named_modules():
-                if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                    if self.config.weight_initialization == "kaiming":
+                if self.config.weight_initialization == "kaiming":
+                    if isinstance(m, (nn.Conv2d, nn.Linear)):
                         nn.init.kaiming_normal_(m.weight)
-                    elif self.config.weight_initialization == "xavier":
+                elif self.config.weight_initialization == "xavier":
+                    if isinstance(m, (nn.Conv2d, nn.Linear)):
                         nn.init.xavier_uniform_(m.weight)
             resume_train = False
 
@@ -122,3 +112,21 @@ class Checkpoint:
             del ckpt
 
         return start_epoch, best_train_map, best_val_map
+
+    # TODO Rename this here and in `check_retrain`
+    def load_weights(self, weights, model, exclude, resume_train):
+        print(f"load with pretrain weight: {weights}")
+        result = torch.load(weights, map_location=self.device)
+        state_dict = intersect_dictsyolov7(
+            result["model"], model.state_dict(), exclude=exclude
+        )
+        model.load_state_dict(state_dict, strict=False)
+        print(
+            "Transferred %g/%g items from %s"
+            % (len(state_dict), len(model.state_dict()), weights)
+        )  # report
+        if not resume_train:
+                # resume training need to load ckpt later
+            del result
+        del state_dict
+        return result

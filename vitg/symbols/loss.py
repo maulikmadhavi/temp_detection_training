@@ -79,8 +79,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
         b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
         tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
-        n = b.shape[0]  # number of targets
-        if n:
+        if n := b.shape[0]:
             nt += n  # cumulative targets
             if torch.__version__[0] == "2":
                 gi = gi.cpu().long()
@@ -110,10 +109,6 @@ def compute_loss(p, targets, model):  # predictions, targets, model
                 t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                 t[range(n), tcls[i]] = cp
                 lcls += BCEcls(ps[:, 5:], t)  # BCE
-
-            # Append targets to text file
-            # with open('targets.txt', 'a') as file:
-            #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
 
         lobj += BCEobj(pi[..., 4], tobj) * balance[i]  # obj loss
 
@@ -258,26 +253,23 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False):
             b1_x1, b2_x1
         )  # convex (smallest enclosing box) width
         ch = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)  # convex height
-        if GIoU:  # Generalized IoU https://arxiv.org/pdf/1902.09630.pdf
-            c_area = cw * ch + 1e-16  # convex area
-            return iou - (c_area - union) / c_area  # GIoU
-        if DIoU or CIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
-            # convex diagonal squared
-            c2 = cw**2 + ch**2 + 1e-16
-            # centerpoint distance squared
-            rho2 = ((b2_x1 + b2_x2) - (b1_x1 + b1_x2)) ** 2 / 4 + (
-                (b2_y1 + b2_y2) - (b1_y1 + b1_y2)
-            ) ** 2 / 4
-            if DIoU:
-                return iou - rho2 / c2  # DIoU
-            elif (
-                CIoU
-            ):  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
-                v = (4 / math.pi**2) * torch.pow(
-                    torch.atan(w2 / h2) - torch.atan(w1 / h1), 2
-                )
-                with torch.no_grad():
-                    alpha = v / (1 - iou + v + 1e-16)
-                return iou - (rho2 / c2 + v * alpha)  # CIoU
+    if GIoU:  # Generalized IoU https://arxiv.org/pdf/1902.09630.pdf
+        c_area = cw * ch + 1e-16  # convex area
+        return iou - (c_area - union) / c_area  # GIoU
+    if DIoU or CIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
+        # convex diagonal squared
+        c2 = cw**2 + ch**2 + 1e-16
+        # centerpoint distance squared
+        rho2 = ((b2_x1 + b2_x2) - (b1_x1 + b1_x2)) ** 2 / 4 + (
+            (b2_y1 + b2_y2) - (b1_y1 + b1_y2)
+        ) ** 2 / 4
+        if DIoU:
+            return iou - rho2 / c2  # DIoU
+        v = (4 / math.pi**2) * torch.pow(
+            torch.atan(w2 / h2) - torch.atan(w1 / h1), 2
+        )
+        with torch.no_grad():
+            alpha = v / (1 - iou + v + 1e-16)
+        return iou - (rho2 / c2 + v * alpha)  # CIoU
 
     return iou

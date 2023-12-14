@@ -83,9 +83,7 @@ class Ensemble(nn.ModuleList):
         super(Ensemble, self).__init__()
 
     def forward(self, x, augment=False):
-        y = []
-        for module in self:
-            y.append(module(x, augment)[0])
+        y = [module(x, augment)[0] for module in self]
         # y = torch.stack(y).max(0)[0]  # max ensemble
         # y = torch.stack(y).mean(0)  # mean ensemble
         y = torch.cat(y, 1)  # nms ensemble
@@ -192,7 +190,7 @@ class ONNX_ORT(nn.Module):
         self, max_obj=100, iou_thres=0.45, score_thres=0.25, max_wh=640, device=None
     ):
         super().__init__()
-        self.device = device if device else torch.device("cpu")
+        self.device = device or torch.device("cpu")
         self.max_obj = torch.tensor([max_obj]).to(device)
         self.iou_threshold = torch.tensor([iou_thres]).to(device)
         self.score_threshold = torch.tensor([score_thres]).to(device)
@@ -232,7 +230,7 @@ class ONNX_TRT(nn.Module):
     ):
         super().__init__()
         assert max_wh is None
-        self.device = device if device else torch.device("cpu")
+        self.device = device or torch.device("cpu")
         self.background_class = (-1,)
         self.box_coding = (1,)
         self.iou_threshold = iou_thres
@@ -273,7 +271,7 @@ class End2End(nn.Module):
         device=None,
     ):
         super().__init__()
-        device = device if device else torch.device("cpu")
+        device = device or torch.device("cpu")
         assert isinstance(max_wh, (int)) or max_wh is None
         self.model = model.to(device)
         self.model.model[-1].end2end = True

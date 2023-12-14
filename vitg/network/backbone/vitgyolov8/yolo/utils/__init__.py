@@ -348,10 +348,7 @@ def get_git_dir():
     Returns:
         (Path) or (None): Git root directory if found or None if not found.
     """
-    for d in Path(__file__).parents:
-        if (d / ".git").is_dir():
-            return d
-    return None  # no .git dir found
+    return next((d for d in Path(__file__).parents if (d / ".git").is_dir()), None)
 
 
 def get_git_origin_url():

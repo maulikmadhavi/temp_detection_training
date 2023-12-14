@@ -166,7 +166,7 @@ def load_mosaic(self, index):
         padh = y1a - y1b
 
         # Labels
-        x = np.array(label_mosic_localx, dtype=np.float)
+        x = np.array(label_mosic_localx, dtype=np.float32)
 
         labels = x.copy()
         if x.size > 0:  # Normalized xywh to pixel xyxy format
@@ -361,9 +361,7 @@ def random_perspective(
                 img, M[:2], dsize=(width, height), borderValue=(114, 114, 114)
             )
 
-    # Transform label coordinates
-    n = len(targets)
-    if n:
+    if n := len(targets):
         # warp points
         xy = np.ones((n * 4, 3))
         xy[:, :2] = targets[:, [1, 2, 3, 4, 1, 4, 3, 2]].reshape(

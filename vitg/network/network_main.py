@@ -52,15 +52,14 @@ class Network:
         self.initializer(weights, resume_train)
 
     def do_forward(self, imgs: torch.Tensor, gloc=None, glabel=None) -> torch.Tensor:
-        if self.config.arch == "mobilenetssd":
-            plabel, ploc = self.model(imgs.to(torch.float))
-            ploc, plabel = ploc.float(), plabel.float()
-            gloc = gloc.transpose(1, 2).contiguous()
-            ploc = ploc.view(self.config.batch_size, -1, 3000)
-            plabel = plabel.view(self.config.batch_size, -1, 3000)
-            return plabel, ploc, gloc, glabel
-        else:
+        if self.config.arch != "mobilenetssd":
             return self.model(imgs)
+        plabel, ploc = self.model(imgs.to(torch.float))
+        ploc, plabel = ploc.float(), plabel.float()
+        gloc = gloc.transpose(1, 2).contiguous()
+        ploc = ploc.view(self.config.batch_size, -1, 3000)
+        plabel = plabel.view(self.config.batch_size, -1, 3000)
+        return plabel, ploc, gloc, glabel
 
     def train(self):
         self.model.train()

@@ -76,11 +76,9 @@ def exif_size(img):
     s = img.size  # (width, height)
     try:
         rotation = dict(img._getexif().items())[orientation]
-        if rotation == 6:  # rotation 270
+        if rotation in [6, 8]:
             s = (s[1], s[0])
-        elif rotation == 8:  # rotation 90
-            s = (s[1], s[0])
-    except:
+    except Exception:
         pass
 
     return s
@@ -158,7 +156,7 @@ class InfiniteDataLoader(torch.utils.data.dataloader.DataLoader):
         return len(self.batch_sampler.sampler)
 
     def __iter__(self):
-        for i in range(len(self)):
+        for _ in range(len(self)):
             yield next(self.iterator)
 
 
@@ -224,12 +222,11 @@ class LoadImages:  # for inference
             if not ret_val:
                 self.count += 1
                 self.cap.release()
-                if self.count == self.nf:  # last video
+                if self.count == self.nf:
                     raise StopIteration
-                else:
-                    path = self.files[self.count]
-                    self.new_video(path)
-                    ret_val, img0 = self.cap.read()
+                path = self.files[self.count]
+                self.new_video(path)
+                ret_val, img0 = self.cap.read()
 
             self.frame += 1
             print(
@@ -241,8 +238,8 @@ class LoadImages:  # for inference
             # Read image
             self.count += 1
             img0 = cv2.imread(path)  # BGR
-            assert img0 is not None, "Image Not Found " + path
-            # print(f'image {self.count}/{self.nf} {path}: ', end='')
+            assert img0 is not None, f"Image Not Found {path}"
+                # print(f'image {self.count}/{self.nf} {path}: ', end='')
 
         # Padded resize
         img = letterbox(img0, self.img_size, stride=self.stride)[0]
@@ -494,7 +491,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         except Exception as e:
             raise Exception(
                 f"{prefix}Error loading data from {path}: {e}\nSee {help_url}"
-            )
+            ) from e
 
         # Check cache
         self.label_files = img2label_paths(self.img_files)  # labels
@@ -571,9 +568,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.imgs = [None] * n
         if cache_images:
             if cache_images == "disk":
-                self.im_cache_dir = Path(
-                    Path(self.img_files[0]).parent.as_posix() + "_npy"
-                )
+                self.im_cache_dir = Path(f"{Path(self.img_files[0]).parent.as_posix()}_npy")
                 self.img_npy = [
                     self.im_cache_dir / Path(f).with_suffix(".npy").name
                     for f in self.img_files
@@ -622,7 +617,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     nf += 1  # label found
                     with open(lb_file, "r") as f:
                         l = [x.split() for x in f.read().strip().splitlines()]
-                        if any([len(x) > 8 for x in l]):  # is segment
+                        if any(len(x) > 8 for x in l):  # is segment
                             classes = np.array([x[0] for x in l], dtype=np.float32)
                             segments = [
                                 np.array(x[1:], dtype=np.float32).reshape(-1, 2)
@@ -855,22 +850,21 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 def load_image(self, index):
     # loads 1 image from dataset, returns img, original hw, resized hw
     img = self.imgs[index]
-    if img is None:  # not cached
-        path = self.img_files[index]
-        img = cv2.imread(path)  # BGR
-        assert img is not None, "Image Not Found " + path
-        h0, w0 = img.shape[:2]  # orig hw
-        r = self.img_size / max(h0, w0)  # resize image to img_size
-        if r != 1:  # always resize down, only resize up if training with augmentation
-            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
-            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-        return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
-    else:
+    if img is not None:
         return (
             self.imgs[index],
             self.img_hw0[index],
             self.img_hw[index],
         )  # img, hw_original, hw_resized
+    path = self.img_files[index]
+    img = cv2.imread(path)  # BGR
+    assert img is not None, f"Image Not Found {path}"
+    h0, w0 = img.shape[:2]  # orig hw
+    r = self.img_size / max(h0, w0)  # resize image to img_size
+    if r != 1:  # always resize down, only resize up if training with augmentation
+        interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+        img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+    return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
 
 
 def augment_hsv(img, hgain=0.5, sgain=0.5, vgain=0.5):
@@ -1363,15 +1357,7 @@ def random_perspective(
                 img, M[:2], dsize=(width, height), borderValue=(114, 114, 114)
             )
 
-    # Visualize
-    # import matplotlib.pyplot as plt
-    # ax = plt.subplots(1, 2, figsize=(12, 6))[1].ravel()
-    # ax[0].imshow(img[:, :, ::-1])  # base
-    # ax[1].imshow(img2[:, :, ::-1])  # warped
-
-    # Transform label coordinates
-    n = len(targets)
-    if n:
+    if n := len(targets):
         use_segments = any(x.any() for x in segments)
         new = np.zeros((n, 4))
         if use_segments:  # warp segments
@@ -1507,10 +1493,7 @@ def pastein(image, labels, sample_labels, sample_images, sample_masks):
         ymax = min(h, ymin + mask_h)
 
         box = np.array([xmin, ymin, xmax, ymax], dtype=np.float32)
-        if len(labels):
-            ioa = bbox_ioa(box, labels[:, 1:5])  # intersection over area
-        else:
-            ioa = np.zeros(1)
+        ioa = bbox_ioa(box, labels[:, 1:5]) if len(labels) else np.zeros(1)
         # print("ioa")
         # print(ioa)
         # if (ioa < 0.30).all() and len(sample_labels) and (xmax > xmin+20) and (ymax > ymin+20):  # allow 30% obscuration of existing labels
@@ -1600,9 +1583,9 @@ def create_folder(path="./new"):
 
 def flatten_recursive(path="../coco"):
     # Flatten a recursive directory by bringing all files to top level
-    new_path = Path(path + "_flat")
+    new_path = Path(f"{path}_flat")
     create_folder(new_path)
-    for file in tqdm(glob.glob(str(Path(path)) + "/**/*.*", recursive=True)):
+    for file in tqdm(glob.glob(f"{str(Path(path))}/**/*.*", recursive=True)):
         shutil.copyfile(file, new_path / Path(file).name)
 
 
@@ -1663,9 +1646,7 @@ def autosplit(path="../coco", weights=(0.9, 0.1, 0.0), annotated_only=False):
         annotated_only: Only use images with an annotated txt file
     """
     path = Path(path)  # images dir
-    files = sum(
-        [list(path.rglob(f"*.{img_ext}")) for img_ext in img_formats], []
-    )  # image files only
+    files = sum((list(path.rglob(f"*.{img_ext}")) for img_ext in img_formats), [])
     n = len(files)  # number of files
     indices = random.choices(
         [0, 1, 2], weights=weights, k=n
@@ -1691,7 +1672,7 @@ def autosplit(path="../coco", weights=(0.9, 0.1, 0.0), annotated_only=False):
 
 
 def load_segmentations(self, index):
-    key = "/work/handsomejw66/coco17/" + self.img_files[index]
+    key = f"/work/handsomejw66/coco17/{self.img_files[index]}"
     # print(key)
     # /work/handsomejw66/coco17/
     return self.segs[key]

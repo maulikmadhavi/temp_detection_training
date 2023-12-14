@@ -86,23 +86,7 @@ class ShowProgressBar:
         loss, loss_items = loss_list
 
         mem = self.get_gpu_mem()
-        if self.arch != "mobilenetssd":
-            self.mloss = (self.mloss * self.i + loss_items) / (
-                self.i + 1
-            )  # update mean losses
-
-            losses = self.mloss.detach().cpu().numpy().tolist()
-            return ("%10s" * 2 + "%10.3g" * 4 + "%10.3g" * 2) % (
-                f"{epoch}/{epochs - 1}",
-                f"{mem}",
-                losses[0],
-                losses[1],
-                losses[2],
-                losses[3],
-                len(targets),
-                imgs.shape[-1],
-            )
-        else:
+        if self.arch == "mobilenetssd":
             return ("%10s" * 2 + "%10.3g" * 1 + "%10.3g" * 2) % (
                 f"{epoch}/{epochs - 1}",
                 f"{mem}",
@@ -110,6 +94,21 @@ class ShowProgressBar:
                 len(targets),
                 imgs.shape[-1],
             )
+        self.mloss = (self.mloss * self.i + loss_items) / (
+            self.i + 1
+        )  # update mean losses
+
+        losses = self.mloss.detach().cpu().numpy().tolist()
+        return ("%10s" * 2 + "%10.3g" * 4 + "%10.3g" * 2) % (
+            f"{epoch}/{epochs - 1}",
+            f"{mem}",
+            losses[0],
+            losses[1],
+            losses[2],
+            losses[3],
+            len(targets),
+            imgs.shape[-1],
+        )
 
     def get_gpu_mem(self):
         return "%.3gG" % (

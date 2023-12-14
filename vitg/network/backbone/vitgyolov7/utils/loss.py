@@ -99,13 +99,8 @@ class SigmoidBin(nn.Module):
         _, bin_idx = torch.max(pred_bin, dim=-1)
         bin_bias = self.bins[bin_idx]
 
-        if self.use_fw_regression:
-            result = pred_reg + bin_bias
-        else:
-            result = bin_bias
-        result = result.clamp(min=self.min, max=self.max)
-
-        return result
+        result = pred_reg + bin_bias if self.use_fw_regression else bin_bias
+        return result.clamp(min=self.min, max=self.max)
 
     def training_loss(self, pred, target):
         assert (
@@ -523,8 +518,7 @@ class ComputeLoss:
             b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
-            n = b.shape[0]  # number of targets
-            if n:
+            if n := b.shape[0]:
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
 
                 # Regression
@@ -549,10 +543,6 @@ class ComputeLoss:
                     t[range(n), tcls[i]] = self.cp
                     # t[t==self.cp] = iou.detach().clamp(0).type(t.dtype)
                     lcls += self.BCEcls(ps[:, 5:], t)  # BCE
-
-                # Append targets to text file
-                # with open('targets.txt', 'a') as file:
-                #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
 
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj += obji * self.balance[i]  # obj loss
@@ -704,8 +694,7 @@ class ComputeLossOTA:
             b, a, gj, gi = bs[i], as_[i], gjs[i], gis[i]  # image, anchor, gridy, gridx
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
-            n = b.shape[0]  # number of targets
-            if n:
+            if n := b.shape[0]:
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
 
                 # Regression
@@ -735,10 +724,6 @@ class ComputeLossOTA:
                     t[range(n), selected_tcls] = self.cp
                     lcls += self.BCEcls(ps[:, 5:], t)  # BCE
 
-                # Append targets to text file
-                # with open('targets.txt', 'a') as file:
-                #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
-
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj += obji * self.balance[i]  # obj loss
             if self.autobalance:
@@ -763,12 +748,12 @@ class ComputeLossOTA:
         # indices, anch = self.find_5_positive(p, targets)
         # indices, anch = self.find_9_positive(p, targets)
 
-        matching_bs = [[] for pp in p]
-        matching_as = [[] for pp in p]
-        matching_gjs = [[] for pp in p]
-        matching_gis = [[] for pp in p]
-        matching_targets = [[] for pp in p]
-        matching_anchs = [[] for pp in p]
+        matching_bs = [[] for _ in p]
+        matching_as = [[] for _ in p]
+        matching_gjs = [[] for _ in p]
+        matching_gis = [[] for _ in p]
+        matching_targets = [[] for _ in p]
+        matching_anchs = [[] for _ in p]
 
         nl = len(p)
 
@@ -1063,8 +1048,7 @@ class ComputeLossBinOTA:
                 self.wh_bin_sigmoid.get_length() * 2 + 2
             )  # x,y, w-bce, h-bce     # xy_bin_sigmoid.get_length()*2
 
-            n = b.shape[0]  # number of targets
-            if n:
+            if n := b.shape[0]:
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
 
                 # Regression
@@ -1131,10 +1115,6 @@ class ComputeLossBinOTA:
                     t[range(n), selected_tcls] = self.cp
                     lcls += self.BCEcls(ps[:, (1 + obj_idx) :], t)  # BCE
 
-                # Append targets to text file
-                # with open('targets.txt', 'a') as file:
-                #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
-
             obji = self.BCEobj(pi[..., obj_idx], tobj)
             lobj += obji * self.balance[i]  # obj loss
             if self.autobalance:
@@ -1159,12 +1139,12 @@ class ComputeLossBinOTA:
         # indices, anch = self.find_5_positive(p, targets)
         # indices, anch = self.find_9_positive(p, targets)
 
-        matching_bs = [[] for pp in p]
-        matching_as = [[] for pp in p]
-        matching_gjs = [[] for pp in p]
-        matching_gis = [[] for pp in p]
-        matching_targets = [[] for pp in p]
-        matching_anchs = [[] for pp in p]
+        matching_bs = [[] for _ in p]
+        matching_as = [[] for _ in p]
+        matching_gjs = [[] for _ in p]
+        matching_gis = [[] for _ in p]
+        matching_targets = [[] for _ in p]
+        matching_anchs = [[] for _ in p]
 
         nl = len(p)
 
@@ -1483,8 +1463,7 @@ class ComputeLossAuxOTA:
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
             tobj_aux = torch.zeros_like(pi_aux[..., 0], device=device)  # target obj
 
-            n = b.shape[0]  # number of targets
-            if n:
+            if n := b.shape[0]:
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
 
                 # Regression
@@ -1513,12 +1492,7 @@ class ComputeLossAuxOTA:
                     t[range(n), selected_tcls] = self.cp
                     lcls += self.BCEcls(ps[:, 5:], t)  # BCE
 
-                # Append targets to text file
-                # with open('targets.txt', 'a') as file:
-                #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
-
-            n_aux = b_aux.shape[0]  # number of targets
-            if n_aux:
+            if n_aux := b_aux.shape[0]:
                 ps_aux = pi_aux[
                     b_aux, a_aux, gj_aux, gi_aux
                 ]  # prediction subset corresponding to targets
@@ -1573,12 +1547,12 @@ class ComputeLossAuxOTA:
     def build_targets(self, p, targets, imgs):
         indices, anch = self.find_3_positive(p, targets)
 
-        matching_bs = [[] for pp in p]
-        matching_as = [[] for pp in p]
-        matching_gjs = [[] for pp in p]
-        matching_gis = [[] for pp in p]
-        matching_targets = [[] for pp in p]
-        matching_anchs = [[] for pp in p]
+        matching_bs = [[] for _ in p]
+        matching_as = [[] for _ in p]
+        matching_gjs = [[] for _ in p]
+        matching_gis = [[] for _ in p]
+        matching_targets = [[] for _ in p]
+        matching_anchs = [[] for _ in p]
 
         nl = len(p)
 
@@ -1733,12 +1707,12 @@ class ComputeLossAuxOTA:
     def build_targets2(self, p, targets, imgs):
         indices, anch = self.find_5_positive(p, targets)
 
-        matching_bs = [[] for pp in p]
-        matching_as = [[] for pp in p]
-        matching_gjs = [[] for pp in p]
-        matching_gis = [[] for pp in p]
-        matching_targets = [[] for pp in p]
-        matching_anchs = [[] for pp in p]
+        matching_bs = [[] for _ in p]
+        matching_as = [[] for _ in p]
+        matching_gjs = [[] for _ in p]
+        matching_gis = [[] for _ in p]
+        matching_targets = [[] for _ in p]
+        matching_anchs = [[] for _ in p]
 
         nl = len(p)
 

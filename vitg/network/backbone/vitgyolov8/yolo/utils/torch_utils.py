@@ -281,8 +281,7 @@ def get_flops(model, imgsz=640):
         imgsz = (
             imgsz if isinstance(imgsz, list) else [imgsz, imgsz]
         )  # expand if int/float
-        flops = flops * imgsz[0] / stride * imgsz[1] / stride  # 640x640 GFLOPs
-        return flops
+        return flops * imgsz[0] / stride * imgsz[1] / stride
     except Exception:
         return 0
 
@@ -472,6 +471,8 @@ def profile(input, ops, n=10, device=None):
     for x in input if isinstance(input, list) else [input]:
         x = x.to(device)
         x.requires_grad = True
+        flops = 0
+
         for m in ops if isinstance(ops, list) else [ops]:
             m = m.to(device) if hasattr(m, "to") else m  # device
             m = (
@@ -482,8 +483,6 @@ def profile(input, ops, n=10, device=None):
                 else m
             )
             tf, tb, t = 0, 0, [0, 0, 0]  # dt forward, backward
-            flops = 0
-
             try:
                 for _ in range(n):
                     t[0] = time_sync()

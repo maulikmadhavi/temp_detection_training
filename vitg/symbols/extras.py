@@ -143,8 +143,7 @@ class Lossv8func:
             out = torch.zeros(batch_size, counts.max(), 5, device=self.device)
             for j in range(batch_size):
                 matches = i == j
-                n = matches.sum()
-                if n:
+                if n := matches.sum():
                     out[j, :n] = targets[matches, 1:]
             out[..., 1:5] = xywh2xyxyv8(out[..., 1:5].mul_(scale_tensor))
         return out
@@ -241,8 +240,7 @@ def preprocess_v8(targets, batch_size, scale_tensor):
         out = torch.zeros(batch_size, counts.max(), 5)
         for j in range(batch_size):
             matches = i == j
-            n = matches.sum()
-            if n:
+            if n := matches.sum():
                 out[j, :n] = targets[matches, 1:]
         out[..., 1:5] = xywh2xyxyv8(out[..., 1:5].mul_(scale_tensor))
     return out

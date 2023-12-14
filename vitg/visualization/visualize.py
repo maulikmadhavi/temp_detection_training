@@ -9,10 +9,7 @@ class Visualize:
     """
 
     def __init__(self, visualize_type="tensorboard"):
-        if visualize_type == "tensorboard":
-            self.writer = SummaryWriter()
-        else:
-            self.writer = None
+        self.writer = SummaryWriter() if visualize_type == "tensorboard" else None
 
     def update(self, run, results, mloss):
         if self.writer:

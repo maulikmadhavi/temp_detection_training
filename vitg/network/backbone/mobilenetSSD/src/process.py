@@ -77,25 +77,20 @@ class _BbType(Enum):
 class Evaluator:
     @staticmethod
     def CalculateAveragePrecision(rec, prec):
-        mrec = []
-        mrec.append(0)
+        mrec = [0]
         [mrec.append(e) for e in rec]
         mrec.append(1)
-        mpre = []
-        mpre.append(0)
+        mpre = [0]
         [mpre.append(e) for e in prec]
         mpre.append(0)
         for i in range(len(mpre) - 1, 0, -1):
             mpre[i - 1] = max(mpre[i - 1], mpre[i])
-        ii = []
-        for i in range(len(mrec) - 1):
-            if mrec[1 + i] != mrec[i]:
-                ii.append(i + 1)
+        ii = [i + 1 for i in range(len(mrec) - 1) if mrec[1 + i] != mrec[i]]
         ap = 0
         for i in ii:
             ap = ap + np.sum((mrec[i] - mrec[i - 1]) * mpre[i])
         # return [ap, mpre[1:len(mpre)-1], mrec[1:len(mpre)-1], ii]
-        return [ap, mpre[0 : len(mpre) - 1], mrec[0 : len(mpre) - 1], ii]
+        return [ap, mpre[:-1], mrec[:len(mpre) - 1], ii]
 
     @staticmethod
     def iou(boxA, boxB):
@@ -115,9 +110,7 @@ class Evaluator:
             return False
         if boxB[0] > boxA[2]:
             return False
-        if boxA[3] < boxB[1]:
-            return False
-        return not boxA[1] > boxB[3]
+        return False if boxA[3] < boxB[1] else not boxA[1] > boxB[3]
 
     @staticmethod
     def _get_intersection_area(boxA, boxB):
@@ -222,19 +215,18 @@ def evaluate_mobilenet(
 
             width = shapes[batchidx][0][1]
             height = shapes[batchidx][0][0]
-            for value in templocredotensor2:
-                allgroundt.append(
-                    [
-                        paths[batchidx],
-                        value[0] * width,
-                        value[1] * height,
-                        value[2] * width,
-                        value[3] * height,
-                        1,
-                        value[4],
-                    ]
-                )
-
+            allgroundt.extend(
+                [
+                    paths[batchidx],
+                    value[0] * width,
+                    value[1] * height,
+                    value[2] * width,
+                    value[3] * height,
+                    1,
+                    value[4],
+                ]
+                for value in templocredotensor2
+            )
         gloc = torch.tensor(boxinallbatch)
         glabel = torch.tensor(labelinallbatch)
         time.time()
@@ -263,8 +255,8 @@ def evaluate_mobilenet(
                     result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[
                         0
                     ]
-                except:
-                    print("No object detected in idx: {}".format(idx))
+                except Exception:
+                    print(f"No object detected in idx: {idx}")
                     continue
                 width = shapes[idx][0][1]
                 height = shapes[idx][0][0]
@@ -380,7 +372,7 @@ def evaluate_mobilenet(
         # Loop through detections
         for d in range(len(dects)):
             # Find ground truth image
-            gt = gts[dects[d][0]] if dects[d][0] in gts else []
+            gt = gts.get(dects[d][0], [])
             iouMax = sys.float_info.min
             for j in range(len(gt)):
                 iou = Evaluator.iou(dects[d][3], gt[j][3])
@@ -419,8 +411,7 @@ def evaluate_mobilenet(
         # select TP an FN from ground truth per class
         from_gt_TP = []
         from_gt_FN = []
-        for gtkey in gts:
-            gt_perkey = gts[gtkey]
+        for gtkey, gt_perkey in gts.items():
             gt_result = det[gtkey]
             for gt_img_idx in range(len(gt_result)):
                 if gt_result[gt_img_idx] == 1:
@@ -467,7 +458,7 @@ def evaluate_mobilenet(
                 len(item["all detail TP from detection"])
                 + len(item["all detail FP from detection"])
             )
-        except:
+        except Exception:
             precision = 0
         all_pv.append(precision)
         try:
@@ -475,7 +466,7 @@ def evaluate_mobilenet(
                 len(item["all detail TP from ground truth"])
                 + len(item["all detail FN from ground truth"])
             )
-        except:
+        except Exception:
             recall = 0
         all_rv.append(recall)
         all_a_pv.append(item["AP"])
@@ -519,15 +510,13 @@ def evaluate_lmdb_outyaml_mobilenet(
                         result = encoder.decode_batch(
                             ploc_i, plabel_i, nms_threshold, 200
                         )[0]
-                    except:
-                        print("No object detected in idx: {}".format(idx))
+                    except Exception:
+                        print(f"No object detected in idx: {idx}")
                         continue
                     width = shapes[idx][0][1]
                     height = shapes[idx][0][0]
                     loc, label, prob = [r.cpu().numpy() for r in result]
-                    annidx = 0
-                    for loc_, label_, prob_ in zip(loc, label, prob):
-                        annidx += 1
+                    for annidx, (loc_, label_, prob_) in enumerate(zip(loc, label, prob), start=1):
                         detections.append(
                             [
                                 paths[idx],
@@ -555,13 +544,11 @@ def evaluate_lmdb_outyaml_mobilenet(
                                 "segmentation": [],
                                 "points": [],
                                 "category_id": [opt.category_dic[int(gt)]],
-                                # "category_id": [str(gt)],
                                 "category_confidence_value": [float(conf)],
-                                # "category_confidence_value":[str(conf)],
                                 "label": [],
                                 "label_conf_value": [],
                                 "output_image_id": "",
-                                "output_id": "1" + str(annidx) + str(paths[idx]),
+                                "output_id": f"1{str(annidx)}{str(paths[idx])}",
                             }
                             dump_yaml_temp.append(temp_a)
 
@@ -578,10 +565,7 @@ def evaluate_lmdb_outyaml_mobilenet(
                             )
 
                     store_bef_write = yaml.dump(dump_yaml_temp)
-                    if len(dump_yaml_temp) == 0:
-                        pass
-
-                    else:
+                    if len(dump_yaml_temp) != 0:
                         f.write(store_bef_write)
 
                     dump_yaml_temp = []
