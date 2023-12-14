@@ -5,7 +5,6 @@ from vitg.utils.datasets import (
 )
 
 
-
 def get_test_loader(config, hyp, batch_size, gs, imgsz_test):
     (
         testloader_noaug,

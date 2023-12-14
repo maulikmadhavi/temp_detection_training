@@ -68,7 +68,9 @@ class SqueezeBlock(nn.Module):
 
 class MobileBlock(nn.Module):
     # def __init__(self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size, dropout_rate=1.0):
-    def __init__(self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size):
+    def __init__(
+        self, in_channels, out_channels, kernal_size, stride, nonLinear, SE, exp_size
+    ):
         super(MobileBlock, self).__init__()
         self.out_channels = out_channels
         self.nonLinear = nonLinear
@@ -79,7 +81,9 @@ class MobileBlock(nn.Module):
 
         activation = nn.ReLU if self.nonLinear == "RE" else h_swish
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, exp_size, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                in_channels, exp_size, kernel_size=1, stride=1, padding=0, bias=False
+            ),
             nn.BatchNorm2d(exp_size),
             activation(inplace=True),
         )
@@ -120,7 +124,9 @@ class MobileBlock(nn.Module):
 
 class MobileNetV3(nn.Module):
     # def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0):
-    def __init__(self, model_mode="SMALL", num_classes=30, multiplier=1.0, dropout_rate=0.0):
+    def __init__(
+        self, model_mode="SMALL", num_classes=30, multiplier=1.0, dropout_rate=0.0
+    ):
         super(MobileNetV3, self).__init__()
         self.num_classes = num_classes
 
@@ -177,7 +183,8 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                ))
+                    )
+                )
             self.block = nn.Sequential(*self.block)
 
             out_conv1_in = _make_divisible(160 * multiplier)
@@ -233,7 +240,8 @@ class MobileNetV3(nn.Module):
                     kernel_size=3,
                     stride=2,
                     padding=1,
-            ))
+                )
+            )
             self.features.append(nn.BatchNorm2d(init_conv_out))
             self.features.append(h_swish(inplace=True))
 
@@ -259,7 +267,8 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                ))
+                    )
+                )
                 self.features.append(
                     MobileBlock(
                         in_channels,
@@ -269,7 +278,8 @@ class MobileNetV3(nn.Module):
                         nonlinear,
                         se,
                         exp_size,
-                ))
+                    )
+                )
             self.block = nn.Sequential(*self.block)
 
             out_conv1_in = _make_divisible(96 * multiplier)
@@ -281,7 +291,9 @@ class MobileNetV3(nn.Module):
                 h_swish(inplace=True),
             )
             self.avg_pool = nn.AdaptiveAvgPool2d(1)
-            self.features.append(nn.Conv2d(out_conv1_in, out_conv1_out, kernel_size=1, stride=1))
+            self.features.append(
+                nn.Conv2d(out_conv1_in, out_conv1_out, kernel_size=1, stride=1)
+            )
             self.features.append(SqueezeBlock(out_conv1_out))
             self.features.append(nn.BatchNorm2d(out_conv1_out))
             self.features.append(h_swish(inplace=True))
@@ -294,7 +306,9 @@ class MobileNetV3(nn.Module):
                 nn.Dropout(dropout_rate),
                 nn.Conv2d(out_conv2_out, self.num_classes, kernel_size=1, stride=1),
             )
-            self.features.append(nn.Conv2d(out_conv2_in, out_conv2_out, kernel_size=1, stride=1))
+            self.features.append(
+                nn.Conv2d(out_conv2_in, out_conv2_out, kernel_size=1, stride=1)
+            )
             self.features.append(h_swish(inplace=True))
 
             self.features = nn.Sequential(*self.features)

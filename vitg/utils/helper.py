@@ -12,8 +12,8 @@ def get_hyp(config):
     with open(config.hyp) as f:
         hyp = yaml.load(f, Loader=yaml.FullLoader)
 
-    hyp_keys = [ "fl_gamma", "translate", "flipud", "mixup", "degrees", "scale"]
-    hyp.update({k: getattr(config, k) for k in hyp_keys} )
+    hyp_keys = ["fl_gamma", "translate", "flipud", "mixup", "degrees", "scale"]
+    hyp.update({k: getattr(config, k) for k in hyp_keys})
     hyp["lr0"] = config.lr
     hyp["mosaic"] = "mosaic" in config.transforms_train
 

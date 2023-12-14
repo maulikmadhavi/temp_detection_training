@@ -55,7 +55,9 @@ def create_dataloader(
         [os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, 8]
     )  # number of workers
     train_sampler = (
-        torch.utils.data.distributed.DistributedSampler(dataset) if local_rank != -1 else None
+        torch.utils.data.distributed.DistributedSampler(dataset)
+        if local_rank != -1
+        else None
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -102,7 +104,9 @@ def create_test_dataloader(
         [os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, 8]
     )  # number of workers
     train_sampler = (
-        torch.utils.data.distributed.DistributedSampler(dataset) if local_rank != -1 else None
+        torch.utils.data.distributed.DistributedSampler(dataset)
+        if local_rank != -1
+        else None
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -148,7 +152,9 @@ def create_dataloader_noletterbox(
         [os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, 8]
     )  # number of workers
     train_sampler = (
-        torch.utils.data.distributed.DistributedSampler(dataset) if local_rank != -1 else None
+        torch.utils.data.distributed.DistributedSampler(dataset)
+        if local_rank != -1
+        else None
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -182,7 +188,6 @@ class LoaderBaseClass(Dataset):
     @staticmethod
     def __len__():
         return 30
-    
 
     @staticmethod
     def collate_fn(batch):
@@ -272,7 +277,8 @@ class LoadImagesAndLabels(LoaderBaseClass):  # for training/testing
                 elif mini > 1:
                     shapes[i] = [1, 1 / mini]
             self.batch_shapes = (
-                np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int16) * stride
+                np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int16)
+                * stride
             )
 
     def __getitem__(self, index):
@@ -307,12 +313,13 @@ class LoadImagesAndLabels(LoaderBaseClass):  # for training/testing
 
             # Load labels
             labels = []
-            unpacked_labels_nomosaic = [[
-                item["category_id"][0],
-                item["bbox"][0] + item["bbox"][2] / 2,
-                item["bbox"][1] + item["bbox"][3] / 2,
-                item["bbox"][2],
-                item["bbox"][3],
+            unpacked_labels_nomosaic = [
+                [
+                    item["category_id"][0],
+                    item["bbox"][0] + item["bbox"][2] / 2,
+                    item["bbox"][1] + item["bbox"][3] / 2,
+                    item["bbox"][2],
+                    item["bbox"][3],
                 ]
                 for item in self.unpacked[1]
             ]
@@ -359,6 +366,7 @@ class LoadImagesAndLabels(LoaderBaseClass):  # for training/testing
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
         return torch.from_numpy(img), labels_out, self.unpacked[5], shapes
+
 
 class _LoadImagesAndLabelsNoletterbox(LoaderBaseClass):
     def __init__(
@@ -411,7 +419,8 @@ class _LoadImagesAndLabelsNoletterbox(LoaderBaseClass):
                 elif mini > 1:
                     shapes[i] = [1, 1 / mini]
             self.batch_shapes = (
-                np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int16) * stride
+                np.ceil(np.array(shapes) * img_size / stride + pad).astype(np.int16)
+                * stride
             )
 
     def __getitem__(self, index):
@@ -432,15 +441,18 @@ class _LoadImagesAndLabelsNoletterbox(LoaderBaseClass):
         else:
             (img, (h0, w0), (h, w)) = load_image_sqr(self, index)
             shape = self.img_size
-            (img, ratio, pad) = letterbox_disable(img, shape, auto=False, scaleup=self.augment)
+            (img, ratio, pad) = letterbox_disable(
+                img, shape, auto=False, scaleup=self.augment
+            )
             shapes = ((h0, w0), ((h / h0, w / w0), pad))
             labels = []
-            unpacked_labels_nomosaic = [[
-                item["category_id"][0],
-                item["bbox"][0] + item["bbox"][2] / 2,
-                item["bbox"][1] + item["bbox"][3] / 2,
-                item["bbox"][2],
-                item["bbox"][3],
+            unpacked_labels_nomosaic = [
+                [
+                    item["category_id"][0],
+                    item["bbox"][0] + item["bbox"][2] / 2,
+                    item["bbox"][1] + item["bbox"][3] / 2,
+                    item["bbox"][2],
+                    item["bbox"][3],
                 ]
                 for item in self.unpacked[1]
             ]
@@ -533,19 +545,22 @@ class _LoadImagesAndLabelsTest(LoaderBaseClass):
             stride2 = self.stride
             pad2 = self.pad
             shape0 = (
-                np.ceil(np.array(shapes) * self.img_size / stride2 + pad2).astype(np.int16)
+                np.ceil(np.array(shapes) * self.img_size / stride2 + pad2).astype(
+                    np.int16
+                )
                 * stride2
             )
             shape = shape0[0] if self.rect else self.img_size
             (img, ratio, pad) = letterbox(img, shape, auto=False, scaleup=self.augment)
             shapes = ((h0, w0), ((h / h0, w / w0), pad))
             labels = []
-            unpacked_labels_nomosaic = [[
-                item["category_id"][0],
-                item["bbox"][0] + item["bbox"][2] / 2,
-                item["bbox"][1] + item["bbox"][3] / 2,
-                item["bbox"][2],
-                item["bbox"][3],
+            unpacked_labels_nomosaic = [
+                [
+                    item["category_id"][0],
+                    item["bbox"][0] + item["bbox"][2] / 2,
+                    item["bbox"][1] + item["bbox"][3] / 2,
+                    item["bbox"][2],
+                    item["bbox"][3],
                 ]
                 for item in self.unpacked[1]
             ]

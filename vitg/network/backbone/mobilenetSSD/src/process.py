@@ -13,6 +13,7 @@ import yaml
 from torchvision.ops.boxes import box_convert, box_iou
 from tqdm import tqdm
 
+
 class MethodAveragePrecision(Enum):
     """
     Class representing if the coordinates are relative to the

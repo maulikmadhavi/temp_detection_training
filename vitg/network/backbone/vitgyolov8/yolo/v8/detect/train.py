@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from vitg.network.backbone.vitgyolov8.nn.tasks import DetectionModel
 from vitg.network.backbone.vitgyolov8.yolo import v8
+
 # from vitg.network.backbone.vitgyolov8.yolo.data import build_dataloader
 from vitg.network.backbone.vitgyolov8.yolo.data.dataloaders.v5loader import (
     create_dataloader,

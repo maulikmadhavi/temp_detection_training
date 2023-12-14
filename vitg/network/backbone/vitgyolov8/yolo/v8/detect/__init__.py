@@ -9,7 +9,7 @@ __all__ = [
     "DetectionPredictor",
     "predict",
     "DetectionTrainer",
-     "train",
+    "train",
     "DetectionValidator",
     "val",
 ]
