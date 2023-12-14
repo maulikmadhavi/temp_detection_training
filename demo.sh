@@ -1,6 +1,6 @@
 # #!/bin/bash
 
-for arch in  yolov4csp yolov7 yolov8 mobilenetssd yolor;
+for arch in  yolov7 yolov8;
 do
     coverage run  main.py --arch $arch --epochs 3
 
@@ -31,17 +31,10 @@ done
 
 
 
-# for arch in  yolov4csp yolov7 yolov8 mobilenetssd yolor;
-# do
-#     python  main.py --arch $arch --epochs 2
+coverage combine .coverage_run2_mobilenetssd \
+    .coverage_run2_yolor .coverage_run2_yolov4csp \
+    .coverage_run2_yolov7 .coverage_run2_yolov8 
 
-#     mv output output_temp_run3_$arch
-
-#     echo "done $arch"
-
-#     echo ""
-#     echo "--------------------------------------"
-#     echo ""
-
-# done
-
+coverage report \
+--data-file=.coverage \
+-m `find . | grep .py | grep -v pyc`  > outputreport.txt    

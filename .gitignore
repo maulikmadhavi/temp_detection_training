@@ -5,3 +5,7 @@ outputreport_*
 .coverage*
 outputreport
 __pycache__/
+utils/
+data/
+
+vitg/network/backbone/vitgyolov8/yolo/data/dataloaders/__pycache__/

@@ -2,9 +2,9 @@ import math
 import os
 import pickle
 import random
-
 import cv2
 import numpy as np
+
 
 
 def unpack_img2(buf, iscolor=1):
@@ -391,7 +391,6 @@ def random_perspective(
 
     return img, targets
 
-
 def box_candidates(
     box1, box2, wh_thr=2, ar_thr=20, area_thr=0.2
 ):  # box1(4,n), box2(4,n)
@@ -405,3 +404,4 @@ def box_candidates(
         & (w2 * h2 / (w1 * h1 + 1e-16) > area_thr)
         & (ar < ar_thr)
     )  # candidates
+

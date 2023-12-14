@@ -10,9 +10,8 @@ from vitg.network.backbone.vitgyolor.utils.datasets import letterbox
 from vitg.network.backbone.vitgyolor.utils.general import (
     make_divisible,
     non_max_suppression,
-    scale_coords,
+    scale_coords
 )
-
 # from vitg.network.backbone.vitgyolor.utils.plots import color_list
 
 try:

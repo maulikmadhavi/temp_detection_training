@@ -4,7 +4,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from vitg.network.backbone.vitgyolov7.utils.general import bbox_iou, box_iou, xywh2xyxy
+from vitg.network.backbone.vitgyolov7.utils.general import (
+    bbox_iou,
+    box_iou,
+    xywh2xyxy
+)
 from vitg.network.backbone.vitgyolov7.utils.torch_utils import is_parallel
 
 

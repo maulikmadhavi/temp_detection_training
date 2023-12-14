@@ -83,7 +83,7 @@ def calculate_train_map(
         0.0,
     )
     loss = torch.zeros(3, device=device)
-    jdict, stats, ap, ap_class = [], [], [], []
+    stats, ap, ap_class = [], [], []
 
     # compute_loss_ota = ComputeLossAuxOTA(model)  # init loss class
     # for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):

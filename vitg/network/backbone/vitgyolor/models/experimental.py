@@ -33,9 +33,7 @@ class C3(nn.Module):
         self.cv4 = Conv(2 * c, c2, 1, 1)
         self.bn = nn.BatchNorm2d(2 * c)  # applied to cat(cv2, cv3)
         self.act = nn.LeakyReLU(0.1, inplace=True)
-        self.m = nn.Sequential(
-            *[CrossConv(c, c, 3, 1, g, 1.0, shortcut) for _ in range(n)]
-        )
+        self.m = nn.Sequential(*[CrossConv(c, c, 3, 1, g, 1.0, shortcut) for _ in range(n)])
 
     def forward(self, x):
         y1 = self.cv3(self.m(self.cv1(x)))
@@ -50,9 +48,7 @@ class Sum(nn.Module):
         self.weight = weight  # apply weights boolean
         self.iter = range(n - 1)  # iter object
         if weight:
-            self.w = nn.Parameter(
-                -torch.arange(1.0, n) / 2, requires_grad=True
-            )  # layer weights
+            self.w = nn.Parameter(-torch.arange(1.0, n) / 2, requires_grad=True)  # layer weights
 
     def forward(self, x):
         y = x[0]  # no weight
@@ -84,10 +80,7 @@ class MixConv2d(nn.Module):
                 0
             ].round()  # solve for equal weight indices, ax = b
         self.m = nn.ModuleList(
-            [
-                nn.Conv2d(c1, int(c_[g]), k[g], s, k[g] // 2, bias=False)
-                for g in range(groups)
-            ]
+            [nn.Conv2d(c1, int(c_[g]), k[g], s, k[g] // 2, bias=False) for g in range(groups)]
         )
         self.bn = nn.BatchNorm2d(c2)
         self.act = nn.LeakyReLU(0.1, inplace=True)

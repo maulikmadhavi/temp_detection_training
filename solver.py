@@ -121,8 +121,8 @@ class Solver(BaseTrainer):
         for i, (
             imgs,
             targets,
-            paths,
-            shapes,
+            _,
+            _,
         ) in pbar:
             if forceclose_check.check_close():
                 print("detect forceclose in train bach")
@@ -205,21 +205,21 @@ class Solver(BaseTrainer):
         ]  # verify imgsz are gs-multiples
 
         # DP mode
+        self.config.imgsz = imgsz
+        self.config.imgsz_test = imgsz_test
+        self.config.gs = gs
+        self.config.rank = rank
+        
         if cuda and rank == -1 and torch.cuda.device_count() > 1:
             self.net.model = torch.nn.DataParallel(self.net.model)
 
         # use_rec_train= not self.config.mosaic
-        use_rec_train = not self.hyp["mosaic"]
+        
 
         # Trainloader
         dataloader = get_train_loader(
             self.config,
             self.hyp,
-            self.config.batch_size,
-            rank,
-            gs,
-            imgsz,
-            use_rec_train,
         )
 
         self.nb = len(dataloader)  # number of batches
@@ -233,7 +233,7 @@ class Solver(BaseTrainer):
                 testloader_train_yml,
                 testloader_val_yml,
             ) = get_test_loader(
-                self.config, self.hyp, self.config.batch_size, gs, imgsz_test
+                self.config, self.hyp
             )
 
             # ema.updates = start_epoch * nb // accumulate  # set EMA updates ***
@@ -241,7 +241,7 @@ class Solver(BaseTrainer):
 
             # train metric
             train_loader_eval = get_intertrain_loader(
-                self.config, self.hyp, self.config.batch_size, gs, imgsz_test
+                self.config, self.hyp
             )
 
         # Model parameters

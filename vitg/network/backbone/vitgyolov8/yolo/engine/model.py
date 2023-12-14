@@ -13,7 +13,6 @@ from vitg.network.backbone.vitgyolov8.nn.tasks import (
     nn,
 )
 from vitg.network.backbone.vitgyolov8.yolo.cfg import get_cfg
-
 # from vitg.network.backbone.vitgyolov8.yolo.engine.exporter import Exporter
 from vitg.network.backbone.vitgyolov8.yolo.utils import (
     DEFAULT_CFG,

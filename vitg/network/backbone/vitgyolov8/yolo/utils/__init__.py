@@ -593,6 +593,7 @@ def set_sentry():
             )
         )
     ):
+
         import sentry_sdk  # noqa
 
         sentry_sdk.init(
